@@ -10,7 +10,7 @@ import CONFIG
 
 # Test set parameters
 TARGET_NUM_TEST_IMAGES = 100
-OUTPUT_DIR = os.path.join('..', '..', 'Data', 'ProcessedData',
+OUTPUT_DIR = os.path.join('..', '..', 'Data', 'RawData',
                           'ObjectDetection', 'Test')
 # Define the grid cell from which we will sample our locations
 GRID = [[37.76583204171835, -122.43090178068529], # Mission District
