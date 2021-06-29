@@ -2,9 +2,10 @@ import glob
 import os
 import random
 import shutil
-import shutil
 import yaml
 from zipfile import ZipFile
+
+import utils
 
 # Parameters
 ROBOFLOW_DIRECTORY = os.path.join(
@@ -66,15 +67,10 @@ def correct_annotations(consistency_dictionary, annotation_path):
     return new_annot_path
 
 
-def get_image_name(image_path):
-    image_name = image_path.split(os.path.sep)[-1]
-    image_name = '.'.join(image_name.split('.')[:-1])
-    return image_name
-
 def process_image(image_path, rf_dir, split,
                   consistent, consistency_dict, counter):
     # Get the image name (excluding extension)
-    image_name = get_image_name(image_path)
+    image_name = utils.get_image_name(image_path)
 
     # Get annotations
     annot_path = os.path.join(
@@ -157,7 +153,7 @@ if __name__ == '__main__':
     val_imgs = train_imgs[:NUM_VALID_IMAGES]
 
     for val_img in val_imgs:
-        img_name = get_image_name(val_img)
+        img_name = utils.get_image_name(val_img)
 
         # Move image and annotation file to validation directory
         new_val_img = os.path.join(
