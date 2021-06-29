@@ -20,7 +20,7 @@ nodes, edges = ox.graph_to_gdfs(G)
 
 # Count street segments
 basic_stats = ox.basic_stats(G)
-num_street_segments = basic_stats['street_segment_count'] # Why is this less?
+num_street_segments = basic_stats['street_segment_count'] # TODO Why is this less?
 
 # Visualize street segments in the neighborhood
 style = {'color': '#F7DC6F', 'weight':'1'}
@@ -30,6 +30,13 @@ folium.GeoJson(edges, style_function=lambda x: style).add_to(Gmap)
 Gmap.save('{}Edges.html'.format(neighborhood['name']))
 
 # Geocode street segments
+
+# TODO Define true street segments
+
+# TODO get street orientation
+
+# TODO partition segments
+
 # (StreetSegment id, ((lat,lng) tuples for GSV images, street orientation)
 
 
