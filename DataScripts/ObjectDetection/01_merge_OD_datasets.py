@@ -20,7 +20,8 @@ CLASSES_FROM_LABEL = {0: 'facade',
                       3: 'garbage',
                       4: 'pothole',
                       5: 'tent',
-                      6: 'window'}
+                      6: 'window',
+                      7: 'graffiti2'}
 
 CLASSES_TO_LABEL = {'facade': 0,
                     'graffiti': 1,
@@ -28,8 +29,10 @@ CLASSES_TO_LABEL = {'facade': 0,
                     'garbage': 3,
                     'pothole': 4,
                     'tent': 5,
-                    'window': 6}
+                    'window': 6,
+                    'graffiti2': 7}
 
+CLASS_LIST = [CLASSES_FROM_LABEL[i] for i in range(len(CLASSES_FROM_LABEL))]
 
 # Helper functions
 def check_label_consistency(label_list):
@@ -38,8 +41,11 @@ def check_label_consistency(label_list):
 
     # Check each class
     for i in range(len(label_list)):
+        # Check if label order is the same
         if label_list[i] != CLASSES_FROM_LABEL[i]:
             consistent_bool = False
+
+        # Verify that label is in the class dictionary
         if label_list[i] not in CLASSES_TO_LABEL.keys():
             raise Exception('[ERROR] Class {} not in dictionary'.format(label_list[i]))
         else:
@@ -171,13 +177,11 @@ if __name__ == '__main__':
     yaml_dict = {
         'train': '../train/images',
         'val': '../valid/images',
-        'nc': 7,
-        'names': ['facade', 'graffiti', 'weed', 'garbage', 'pothole',
-                  'tent', 'window']
+        'nc': len(CLASSES_TO_LABEL),
+        'names': CLASS_LIST
     }
     with open(os.path.join(OUTPUT_DIRECTORY, 'data.yaml'), 'w') as file:
-        yaml.safe_dump(yaml_dict, file, default_flow_style=False)
-    # TODO correct YAML file output
+        yaml.safe_dump(yaml_dict, file, default_flow_style=None)
 
     # Check
     for split in ['train', 'valid']:
