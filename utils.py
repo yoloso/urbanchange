@@ -14,5 +14,9 @@ def load_annotations(annotation_path):
 
 def preprocess_box_list(box_list):
     num_objects = len(box_list)
-    # TODO
+    boxes = []
+
+    for box in box_list:
+        pass
+
     return num_objects, labels, XXX

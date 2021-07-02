@@ -50,7 +50,7 @@ class UrbanData(Dataset):
 
     def __init__(self, data_dir, split, transform):
         """
-        Store the data filtered by the selected output variable.
+        Store the location to the split's images and labels.
         :param data_dir: (str) path to split dataset locations
         :param split: (str) one of ['train', 'valid', 'test']
         :param transform (torchvision.transforms)
