@@ -1,42 +1,71 @@
 import folium
 import geopandas
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import osmnx as ox
 from shapely.geometry import LineString
 
+from utils import compute_heading, generate_new_latlng_from_distance
+
+# Parameters
+R = 6378.1  # Radius of the Earth
+DIST = 0.015  # Distance between images
+OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
+OUTPUT_FILE = 'segment_dictionary_MDblock.json'
+
 
 # Helper functions
-def compute_heading(bearing):
+def check_coordinate_bounds(cur_lat, cur_lng, coords):
     """
-    Computes a tuple of headings to be used in the 'heading' parameter of the
-    Google Street View API such that the images for a given street segment
-    face its buildings at a 90 degree angle.
-    :param bearing: The street segment's orientation
-    :return: (tuple)
+    Verify that
+    :param cur_lat:
+    :param cur_lng:
+    :param coords:
+    :return: (tuple of boolean)
     """
-    if 90 >= bearing >= 0:
-        return [bearing + 90, bearing + 270]
-    elif bearing <= 270:
-        return [bearing + 90, bearing - 90]
-    elif bearing <= 360:
-        return [bearing - 90, bearing - 270]
-    else:
-        raise Exception('[ERROR] Bearing should be between 0 and 360.')
+    lat_in_bounds, lng_in_bounds = False, False
+
+    # Get start and end points
+    init_lat, init_lng = coords[0][1], coords[0][0]
+    final_lat, final_lng = coords[-1][1], coords[-1][0]
+
+    # Check bounds
+    if init_lat <= cur_lat <= final_lat or final_lat <= cur_lat <= init_lat:
+        lat_in_bounds = True
+    if init_lng <= cur_lng <= final_lng or final_lng <= cur_lng <= init_lng:
+        lng_in_bounds = True
+
+    return lat_in_bounds and lng_in_bounds
 
 
-def generate_latlng(geometry, segment_length):
+def generate_latlng(geometry, bearing):
     """
 
+    :param bearing: (float) bearing in degrees
     :param geometry: (shapely.geometry.LineString)
-    :param segment_length:
     :return: (list) of (lat, lng) tuples representing the segment
     """
-    # Get line segment bounds
-    bounds = geometry.bounds
-    # TODO
-    pass
+    # Get line segment coordinates
+    coords = list(geometry.coords)
+    cur_lat, cur_lng = coords[0][1], coords[0][0]
+
+    # Generate pairs of new (lat, lng) coordinates
+    coordinates = [(cur_lat, cur_lng)]
+    in_bounds = True
+    while in_bounds:
+        new_lat, new_lng = generate_new_latlng_from_distance(
+            cur_lat=cur_lat, cur_lng=cur_lng, segment_bearing=bearing,
+            distance=DIST, radius=R)
+        coordinates.append((new_lat, new_lng))
+
+        # Update coordinates and check bounds
+        cur_lat, cur_lng = new_lat, new_lng
+        in_bounds = check_coordinate_bounds(
+            cur_lat=cur_lat, cur_lng=cur_lng, coords=coords)
+
+    return coordinates
 
 
 # Define the geographic location / neighborhood
@@ -87,31 +116,34 @@ street_segments['segment_id'] = street_segments[['u', 'v']].apply(list, axis=1)
 street_segments['segment_id'] = street_segments['segment_id'].apply(sorted)
 street_segments['segment_id'] = street_segments['segment_id'].apply(str)
 street_segments.drop_duplicates(['segment_id'], inplace=True)
-assert(num_street_segments == len(street_segments))
+assert (num_street_segments == len(street_segments))
 
 # Get 'heading' parameter for GSV call
-# Note: Heading should be perpendicular to street orientation
 # TODO: how to identify correct heading for a street like Guerrero?
 street_segments[['heading1', 'heading2']] = \
     street_segments['bearing'].apply(compute_heading).tolist()
-
-street_segments = street_segments[['segment_id', 'name', 'length', 'geometry',
-                                   'heading1', 'heading2']]
 
 # Segment partitioning: Generate the (lat, lng) tuples for each
 # street segment to be used in each GSV call
 # Note: Segment representations can be normalized using street length
 street_segments['coordinates'] = \
-    street_segments[['geometry', 'length']].apply(generate_latlng)
-
-# Camp Street tests
-length = street_segments[street_segments['name'] == 'Camp Street']['length'][0]
-geom = street_segments[street_segments['name'] == 'Camp Street']['geometry'][0]
-
+    street_segments.apply(lambda x: generate_latlng(x['geometry'], x['bearing']),
+                          axis=1)
 
 # Final dataset structure:
-# (StreetSegment id, ((lat,lng), headings, length)
+# (StreetSegment id, street name, street length (meters),
+# street bearing (degrees), heading1, heading2, list of coordinates)
+street_segments = street_segments[['segment_id', 'name', 'length', 'bearing',
+                                   'heading1', 'heading2', 'coordinates']]
+street_segments.reset_index(inplace=True, drop=True)
+
+# Export
+if not os.path.exists(OUTPUT_PATH):
+    os.makedirs(OUTPUT_PATH)
+street_segments.to_json(os.path.join(OUTPUT_PATH, OUTPUT_FILE), orient='index')
+
 
 # References
 # https://geoffboeing.com/2016/11/osmnx-python-street-networks/
 # https://towardsdatascience.com/retrieving-openstreetmap-data-in-python-1777a4be45bb
+# https://stackoverflow.com/questions/7222382/get-lat-long-given-current-point-distance-and-bearing
