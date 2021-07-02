@@ -1,6 +1,8 @@
 from io import BytesIO
 import math
+import numpy as np
 import os
+import pandas as pd
 from PIL import Image
 import requests
 
@@ -14,7 +16,9 @@ def compute_heading(bearing):
     :param bearing: The street segment's orientation
     :return: (tuple)
     """
-    if 90 >= bearing >= 0:
+    if pd.isna(bearing):
+        return None, None
+    elif 90 >= bearing >= 0:
         return [bearing + 90, bearing + 270]
     elif bearing <= 270:
         return [bearing + 90, bearing - 90]
