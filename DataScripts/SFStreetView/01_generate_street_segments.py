@@ -35,19 +35,26 @@ LOCATIONS = {
         'type': 'place',
         'location': 'San Francisco, California',
         'start_location': [37.76510958212885, -122.42461359879468]
+    },
+    'GoldenGateHeights': {
+        'type': 'box',
+        'location': [[37.76144285680283, -122.47511505804738],
+                     [37.75225352830853, -122.4671005110224]],
+        'start_location': [37.76144285680283, -122.47511505804738]
     }
 }
 
 
 # Helper functions
-def generate_location_graph(loc_type, location):
+def generate_location_graph(loc_type, location, simplify):
     if loc_type == 'box':
         graph = ox.graph_from_bbox(
             location[0][0], location[1][0], location[0][1], location[1][1],
-            network_type='drive')
+            network_type='drive', simplify=simplify)
         return graph
     elif loc_type == 'place':
-        graph = ox.graph_from_place(location, network_type='drive')
+        graph = ox.graph_from_place(
+            location, network_type='drive', simplify=simplify)
         return graph
     else:
         raise Exception('[ERROR] Location type must be one of [box, place]')
@@ -55,10 +62,10 @@ def generate_location_graph(loc_type, location):
 
 def check_coordinate_bounds(cur_lat, cur_lng, coords):
     """
-    Verify that
-    :param cur_lat:
-    :param cur_lng:
-    :param coords:
+    Verify that current coordinates are within the segment's length.
+    :param cur_lat: (float)
+    :param cur_lng: (float)
+    :param coords: (list)
     :return: (tuple of boolean)
     """
     lat_in_bounds, lng_in_bounds = False, False
@@ -85,7 +92,7 @@ def generate_latlng(geometry, bearing):
     """
     if pd.isna(bearing):
         return []
-
+    # TODO handle curved streets
     # Get line segment coordinates
     coords = list(geometry.coords)
     cur_lat, cur_lng = coords[0][1], coords[0][0]
@@ -107,14 +114,17 @@ def generate_latlng(geometry, bearing):
     return coordinates
 
 
-# Define the neighborhood and generate graph
+# Define the neighborhood and generate the simplified and full graphs
 neighborhood = LOCATIONS[SELECTED_LOCATION]
-G = generate_location_graph(neighborhood['type'], neighborhood['location'])
+G = generate_location_graph(
+    loc_type=neighborhood['type'], location=neighborhood['location'], simplify=True)
+G_full = generate_location_graph(
+    loc_type=neighborhood['type'], location=neighborhood['location'], simplify=False)
+nodes, edges = ox.graph_to_gdfs(G)
 
 # Visualize neighborhood
 G_projected = ox.project_graph(G)
 ox.plot_graph(G_projected)
-nodes, edges = ox.graph_to_gdfs(G)
 
 # Count street segments
 # Note: Street segments are unique (node1, node2) edges
@@ -135,6 +145,9 @@ Gmap.save('{}Edges.html'.format(SELECTED_LOCATION))
 G_bearings = ox.add_edge_bearings(G)
 nodes_b, edges_b = ox.graph_to_gdfs(G_bearings)
 
+G_bearings_full = ox.add_edge_bearings(G_full)
+nodes_b_full, edges_b_full = ox.graph_to_gdfs(G_bearings_full)
+
 # Build dataset of street segments
 street_segments = edges_b.copy()
 street_segments.reset_index(inplace=True)
@@ -149,6 +162,7 @@ street_segments.drop_duplicates(['segment_id'], inplace=True)
 
 # Get 'heading' parameter for GSV call
 # TODO: how to identify correct heading for a street like Guerrero?
+# TODO curved streets
 street_segments[['heading1', 'heading2']] = \
     street_segments['bearing'].apply(compute_heading).tolist()
 
