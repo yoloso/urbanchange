@@ -13,7 +13,7 @@ from utils import compute_heading, generate_new_latlng_from_distance
 
 # Parameters
 R = 6378.1  # Radius of the Earth
-DIST = 0.015  # Distance between images (km)
+DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
 OUTPUT_FILE = 'segment_dictionary_MDblock.json'
 SELECTED_LOCATION = 'MissionDistrictBlock'

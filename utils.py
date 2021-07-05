@@ -82,6 +82,20 @@ def save_SV_image(params, output_dir, file_name):
     img.save(output_file)
 
 
+def get_SV_image(params):
+    """
+    Returns the Google Street View image for a particular location as specified
+    by the params dictionary.
+    :param params: (dict)
+    :return: PIL.Image
+    """
+    # Request and get image
+    img_base_url = 'https://maps.googleapis.com/maps/api/streetview?'
+    img_request = requests.get(img_base_url, params)
+    img = Image.open(BytesIO(img_request.content))
+    return img
+
+
 def reverse_geocode(params):
     """
     Generate a list of addresses for a given (lat, lon) coordinate pair.
