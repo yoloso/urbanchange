@@ -2,12 +2,13 @@ from io import BytesIO
 import math
 import numpy as np
 import os
+import osmnx as ox
 import pandas as pd
 from PIL import Image
 import requests
 
 
-# Geocoding street segments
+# Geocoding street segments --------------------------------
 def compute_heading(bearing):
     """
     Computes a tuple of headings to be used in the 'heading' parameter of the
@@ -62,7 +63,7 @@ def generate_new_latlng_from_distance(cur_lat,
     return new_lat, new_lng
 
 
-# Generating GSV images
+# Generating GSV images ----------------------------------
 def save_SV_image(params, output_dir, file_name):
     """
     Saves the Google Street View image for a particular location as specified
@@ -108,7 +109,31 @@ def reverse_geocode(params):
     return requests.get(geo_base_url, params).json()
 
 
-# Processing images and annotations
+# Street network graphs ----------------------------------
+def generate_location_graph(loc_type, location, simplify):
+    """
+    Generates a networkx.MultiDiGraph of a location's street network.
+    :param loc_type: (str) one of ['box', 'place']
+    :param location: (str) if loc_type == 'place' or list of bounding box
+    coordinates if loc_type == 'box'
+    :param simplify: (bool) whether the street network should be simplified
+    (e.g. to include nodes along a curved street)
+    :return: (networkx.MultiDiGraph)
+    """
+    if loc_type == 'box':
+        graph = ox.graph_from_bbox(
+            location[0][0], location[1][0], location[0][1], location[1][1],
+            network_type='drive', simplify=simplify)
+        return graph
+    elif loc_type == 'place':
+        graph = ox.graph_from_place(
+            location, network_type='drive', simplify=simplify)
+        return graph
+    else:
+        raise Exception('[ERROR] Location type must be one of [box, place]')
+
+
+# Processing images and annotations -----------------------
 def get_image_name(image_path):
     image_name = image_path.split(os.path.sep)[-1]
     image_name = '.'.join(image_name.split('.')[:-1])

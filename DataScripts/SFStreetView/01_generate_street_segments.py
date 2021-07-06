@@ -1,15 +1,11 @@
 import folium
-import geopandas
-import math
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import osmnx as ox
 import pandas as pd
-from shapely.geometry import LineString
 
 from utils import compute_heading, generate_new_latlng_from_distance
-
+from utils import generate_location_graph
 
 # Parameters
 R = 6378.1  # Radius of the Earth
@@ -17,6 +13,7 @@ DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
 OUTPUT_FILE = 'segment_dictionary_MDblock.json'
 SELECTED_LOCATION = 'MissionDistrictBlock'
+VISUALIZE = True
 
 LOCATIONS = {
     'MissionDistrict': {
@@ -46,18 +43,25 @@ LOCATIONS = {
 
 
 # Helper functions
-def generate_location_graph(loc_type, location, simplify):
-    if loc_type == 'box':
-        graph = ox.graph_from_bbox(
-            location[0][0], location[1][0], location[0][1], location[1][1],
-            network_type='drive', simplify=simplify)
-        return graph
-    elif loc_type == 'place':
-        graph = ox.graph_from_place(
-            location, network_type='drive', simplify=simplify)
-        return graph
-    else:
-        raise Exception('[ERROR] Location type must be one of [box, place]')
+def get_unique_segments(street_data):
+    """
+    Generates a DataFrame of unique street segments by dropping duplicate edges,
+    and generates and ID for each segment.
+    :param street_data: pd.DataFrame
+    :return: pd.DataFrame
+    """
+    # Reset the index to get node1, node2
+    street_data.reset_index(inplace=True)
+
+    # Get unique (node1, node2) edges for each graph
+    street_data['segment_id'] = street_data[['u', 'v']].apply(list, axis=1)
+    street_data['segment_id'] = street_data['segment_id'].apply(sorted)
+    street_data['segment_id'] = street_data['segment_id'].apply(str)
+
+    # Drop duplicate edges
+    street_data.drop_duplicates(['segment_id'], inplace=True)
+
+    return street_data
 
 
 def check_coordinate_bounds(cur_lat, cur_lng, coords):
@@ -85,10 +89,11 @@ def check_coordinate_bounds(cur_lat, cur_lng, coords):
 
 def generate_latlng(geometry, bearing):
     """
-
+    Generate a list of (coordinate, headings) that traverses each street
+    segment.
     :param bearing: (float) bearing in degrees
     :param geometry: (shapely.geometry.LineString)
-    :return: (list) of (lat, lng) tuples representing the segment
+    :return: (list) of (lat, lng, heading1, heading2) tuples representing the segment
     """
     if pd.isna(bearing):
         return []
@@ -126,17 +131,17 @@ nodes, edges = ox.graph_to_gdfs(G)
 G_projected = ox.project_graph(G)
 ox.plot_graph(G_projected)
 
-# Count street segments
-# Note: Street segments are unique (node1, node2) edges
+# Count street segments (unique (node1, node2) edges)
 basic_stats = ox.basic_stats(G)
 num_street_segments = basic_stats['street_segment_count']
 
 # Visualize street segments in the neighborhood
-style = {'color': '#F7DC6F', 'weight': '1'}
-Gmap = folium.Map(neighborhood['start_location'], zoom_start=15,
-                  tiles='CartoDb dark_matter')
-folium.GeoJson(edges, style_function=lambda x: style).add_to(Gmap)
-Gmap.save('{}Edges.html'.format(SELECTED_LOCATION))
+if VISUALIZE:
+    style = {'color': '#F7DC6F', 'weight': '1'}
+    Gmap = folium.Map(neighborhood['start_location'], zoom_start=15,
+                      tiles='CartoDb dark_matter')
+    folium.GeoJson(edges, style_function=lambda x: style).add_to(Gmap)
+    Gmap.save('{}Edges.html'.format(SELECTED_LOCATION))
 
 # Add street bearings
 # Note: "Bearing represents angle in degrees (clockwise) between north and the
@@ -149,20 +154,16 @@ G_bearings_full = ox.add_edge_bearings(G_full)
 nodes_b_full, edges_b_full = ox.graph_to_gdfs(G_bearings_full)
 
 # Build dataset of street segments
-street_segments = edges_b.copy()
-street_segments.reset_index(inplace=True)
+street_segments, street_segments_full = edges_b.copy(), edges_b_full.copy()
 
-# Get unique (node1, node2) edges
-street_segments['segment_id'] = street_segments[['u', 'v']].apply(list, axis=1)
-street_segments['segment_id'] = street_segments['segment_id'].apply(sorted)
-street_segments['segment_id'] = street_segments['segment_id'].apply(str)
-street_segments.drop_duplicates(['segment_id'], inplace=True)
-#assert (num_street_segments == len(street_segments))
+# Get unique (node1, node2) edges for each graph
+street_segments = get_unique_segments(street_segments)
+street_segments_full = get_unique_segments(street_segments_full)
+# assert (num_street_segments == len(street_segments))
 # TODO For SF we compute 576 fewer segments
 
 # Get 'heading' parameter for GSV call
 # TODO: how to identify correct heading for a street like Guerrero?
-# TODO curved streets
 street_segments[['heading1', 'heading2']] = \
     street_segments['bearing'].apply(compute_heading).tolist()
 
@@ -173,17 +174,17 @@ street_segments['coordinates'] = \
                           axis=1)
 
 # Final dataset structure:
-# (StreetSegment id, street name, street length (meters),
-# street bearing (degrees), heading1, heading2, list of coordinates)
-street_segments = street_segments[['segment_id', 'name', 'length', 'bearing',
-                                   'heading1', 'heading2', 'coordinates']]
+# (segment id, street name, street length (meters), street bearing (degrees),
+# heading1, heading2, list of coordinates)
+street_segments = street_segments[
+    ['segment_id', 'name', 'length', 'bearing', 'heading1', 'heading2',
+     'coordinates']]
 street_segments.reset_index(inplace=True, drop=True)
 
 # Export dataset
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
 street_segments.to_json(os.path.join(OUTPUT_PATH, OUTPUT_FILE), orient='index')
-
 
 # References
 # https://geoffboeing.com/2016/11/osmnx-python-street-networks/
