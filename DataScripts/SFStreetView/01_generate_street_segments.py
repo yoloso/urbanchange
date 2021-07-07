@@ -1,4 +1,6 @@
 import folium
+import geopandas as gpd
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import osmnx as ox
@@ -8,12 +10,13 @@ from shapely.geometry import Point
 from utils import compute_heading, generate_new_latlng_from_distance
 from utils import generate_location_graph
 
+
 # Parameters
 R = 6378.1  # Radius of the Earth
 DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
-OUTPUT_FILE = 'segment_dictionary_MDblock.json'
 SELECTED_LOCATION = 'MissionDistrictBlock'
+OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
 VISUALIZE = True
 
 LOCATIONS = {
@@ -82,10 +85,10 @@ def check_coordinate_bounds(cur_lat, cur_lng, next_lat, next_lng, new_lat, new_l
     new_point = Point(new_lng, new_lat)
 
     # Compare distances
+    in_bound = False
     if cur_point.distance(new_point) < cur_point.distance(next_point):
-        return True
-    else:
-        return False
+        in_bound = True
+    return in_bound
 
 
 def get_edge_bearing(cur_lat, cur_lng, next_lat, next_lng):
@@ -103,8 +106,7 @@ def get_edge_bearing(cur_lat, cur_lng, next_lat, next_lng):
     # Filter street segment full data
     subsegments = street_segments_full.copy()
     subsegments = subsegments[
-        ((subsegments['node1'] == cur_point) & (subsegments['node2'] == next_point)) |
-        ((subsegments['node2'] == cur_point) & (subsegments['node1'] == next_point))]
+        (subsegments['node1'] == cur_point) & (subsegments['node2'] == next_point)]
 
     # Get bearing
     if len(subsegments) == 1:
@@ -113,10 +115,13 @@ def get_edge_bearing(cur_lat, cur_lng, next_lat, next_lng):
         return np.nan
 
 
-def generate_latlng(linestring, bearing):
+def generate_latlng(linestring, bearing, visualize):
     """
     Generate a list of (coordinate, headings) that traverses each street
     segment.
+    :param visualize: (bool) indicate whether to visualize traversal along the
+    street segment. IMPORTANT: Only visualize on a case by case basis, and not
+    when applying to the entire DataFrame of street segments.
     :param bearing: (float) bearing in degrees
     :param linestring: (shapely.geometry.LineString)
     :return: (list) of ((lat, lng), heading1, heading2) tuples representing the segment
@@ -126,6 +131,13 @@ def generate_latlng(linestring, bearing):
 
     # Get line segment coordinates and current bearing
     line_segment_coords = list(linestring.coords)
+
+    # Set up the DataFrame used for visualization of the traversal
+    if visualize:
+        df = pd.DataFrame(line_segment_coords)
+        df['color'] = 0
+        df['geometry'] = df.apply(lambda x: Point(x[0], x[1]), axis=1)
+        df = df[['geometry', 'color']]
 
     # Generate pairs of new ((lat, lng), heading1, heading2) tuples for GSV calls
     GSV_tuples = []
@@ -159,11 +171,39 @@ def generate_latlng(linestring, bearing):
                 cur_lat=cur_lat, cur_lng=cur_lng, next_lat=next_lat,
                 next_lng=next_lng, new_lat=new_lat, new_lng=new_lng)
 
+            if visualize:
+                df = df.append(
+                    {'geometry': Point(new_lng, new_lat), 'color': 2},
+                    ignore_index=True)
+                plot_traversal(df)
+
+            # If the step is within bounds, we add it to the list of tuples
             if in_bounds:
                 cur_lat, cur_lng = new_lat, new_lng
                 GSV_tuples.append(((cur_lat, cur_lng), heading1, heading2))
 
+                if visualize:
+                    df = df.append(
+                        {'geometry': Point(cur_lng, cur_lat), 'color': 1},
+                        ignore_index=True)
+                    plot_traversal(df)
+
     return GSV_tuples
+
+
+def plot_traversal(df):
+    """
+    Plots a DataFrame of Points as specified by the 'geometry' column, colored
+    by the 'color' column (taking on values in [0, 1, 2].
+    :param df: (DataFrame)
+    :return: None (generates plot)
+    """
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+    fig, ax = plt.subplots()
+    gdf[gdf['color'] == 0].plot(ax=ax, color='red')
+    gdf[gdf['color'] == 1].plot(ax=ax, color='blue')
+    gdf[gdf['color'] == 2].plot(ax=ax, color='green', alpha=0.5)
+    fig.show()
 
 
 # Define the neighborhood and generate the simplified and full graphs
@@ -203,9 +243,8 @@ nodes_b_full, edges_b_full = ox.graph_to_gdfs(G_bearings_full)
 # Build dataset of street segments
 street_segments, street_segments_full = edges_b.copy(), edges_b_full.copy()
 
-# Get unique (node1, node2) edges for each graph
+# Get unique (node1, node2) edges for the simplified graph
 street_segments = get_unique_segments(street_segments)
-street_segments_full = get_unique_segments(street_segments_full)
 # assert (num_street_segments == len(street_segments))
 # TODO For SF we compute 576 fewer segments
 # TODO: how to identify correct heading for a street like Guerrero?
@@ -219,7 +258,8 @@ street_segments_full[['node2']] = street_segments_full['geometry'].apply(
 # Generate (lat, lng) coordinates for each street segment
 # Note: Segment representations can be normalized using street length
 street_segments['coordinates'] = street_segments.apply(
-    lambda x: generate_latlng(x['geometry'], x['bearing']), axis=1)
+    lambda x: generate_latlng(x['geometry'], x['bearing'],
+                              visualize=False), axis=1)
 
 # Final dataset structure:
 # (segment id, street name, street length (meters), street bearing (degrees),

@@ -5,7 +5,6 @@ from PIL import Image, ImageChops
 import CONFIG
 from utils import get_SV_image
 
-
 # Parameters
 SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
@@ -46,7 +45,7 @@ for key, segment in segment_dictionary.items():
     if len(segment['coordinates']) == 0:
         print('[WARNING] No coordinates for segment {}: {}'.format(
             key, segment['name']))
-
+    # TODO MODIFY FOR CURVED STREETS
     # Get images for each heading and coordinate
     for heading_num, heading in enumerate(headings):
         previous_image = Image.new('RGB', (1, 1))
