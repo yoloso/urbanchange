@@ -1,9 +1,9 @@
 import json
 import os
-from PIL import Image, ImageChops
+from tqdm import tqdm
 
 import CONFIG
-from utils import get_SV_image
+from utils import get_SV_image, get_SV_metadata
 
 
 # Parameters
@@ -35,11 +35,7 @@ print('[INFO] Saving images for {} street segments.'.format(
     len(segment_dictionary)))
 main_counter = 0
 
-for key, segment in segment_dictionary.items():
-    if int(key) % 1000 == 0:
-        print('[INFO] Processing segment {}/{}'.format(
-            key, len(segment_dictionary)))
-
+for key, segment in tqdm(segment_dictionary.items()):
     # Hash segment ID
     segment_id = json.loads(segment['segment_id'])
     segment_id = '{}-{}'.format(segment_id[0], segment_id[1])
@@ -49,41 +45,54 @@ for key, segment in segment_dictionary.items():
         print('[WARNING] No coordinates for segment {}: {}'.format(
             key, segment['name']))
 
-    # Set up images for comparison (this is to verify that a GSV call
-    # returns a new image)
-    previous_image_1 = Image.new('RGB', (1, 1))
-    previous_image_2 = Image.new('RGB', (1, 1))
-    temporary_images = [None, None]
-
     # Get images for each coordinate and heading
     location_counter = 0
+    panorama_dict = {}
+
+    # These will be used in case a node has no heading information
+    previous_headings = 0, 0
+
     for (lat, lng), heading1, heading2 in segment['coordinates']:
         for heading_num, heading in enumerate([heading1, heading2]):
+            # Check if heading is None
+            if heading is None:
+                heading = previous_headings[heading_num]
+
+            # Get image meta data
             img_params['heading'] = heading
-
-            # TODO check image dates?
             img_params['location'] = '{},{}'.format(lat, lng)
-            image = get_SV_image(params=img_params)
+            image_metadata = get_SV_metadata(params=img_params)
+            image_panoid = image_metadata['pano_id']
+            # TODO check image dates?
 
-            # Check if image is unique (we only have to check the 2 previous
-            # images in case the bearing was in the opposite direction)
-            img_difference_1 = ImageChops.difference(image, previous_image_1)
-            img_difference_2 = ImageChops.difference(image, previous_image_2)
+            # Check if the image's view of the location is unique by comparing
+            # to previously queried headings
+            save = True
+            if image_panoid in panorama_dict.keys():
+                # Check queried headings
+                for queried_heading in panorama_dict[image_panoid]:
+                    if abs(queried_heading - heading) < 50:
+                        save = False
+                # Add current heading if unique
+                panorama_dict[image_panoid].append(heading)
+            else:
+                panorama_dict[image_panoid] = [heading]
 
-            # If image is different from both previous images, we save it
-            if img_difference_1.getbbox() and img_difference_2.getbbox():
+            # Save if unique
+            if save:
+                image = get_SV_image(params=img_params)
                 file_name = 'img_{}_h{}_{}.png'.format(
                     segment_id, heading_num, str(location_counter).zfill(3))
                 image.save(os.path.join(OUTPUT_PATH, file_name))
 
-                # Update temporary image list and increase counters
-                temporary_images[heading_num] = image
+                # Increase counters
                 location_counter += 1
                 main_counter += 1
 
-        # Update previous images
-        previous_image_1, previous_image_2 = temporary_images
+        # Update headings
+        previous_headings = heading1, heading2
+
 
 print('[INFO] Image collection complete.'
-      'Loaded {} images for {} street segments.'.format(
+      ' Loaded {} images for {} street segments.'.format(
     main_counter, len(segment_dictionary)))

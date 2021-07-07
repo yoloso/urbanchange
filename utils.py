@@ -1,4 +1,5 @@
 from io import BytesIO
+import json
 import math
 import numpy as np
 import os
@@ -95,6 +96,20 @@ def get_SV_image(params):
     img_request = requests.get(img_base_url, params)
     img = Image.open(BytesIO(img_request.content))
     return img
+
+
+def get_SV_metadata(params):
+    """
+    Returns the Google Street View metadata for an image at a particular
+    location specified by the params dictionary.
+    Note: the metadata endpoint incurs no charges
+    :param params: (dict)
+    :return: (dict)
+    """
+    meta_base_url = 'https://maps.googleapis.com/maps/api/streetview/metadata?parameters'
+    meta_request = requests.get(meta_base_url, params)
+    content = json.loads(meta_request.content)
+    return content
 
 
 def reverse_geocode(params):
