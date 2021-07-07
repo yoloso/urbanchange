@@ -3,6 +3,7 @@ import numpy as np
 import os
 import osmnx as ox
 import pandas as pd
+from shapely.geometry import Point
 
 from utils import compute_heading, generate_new_latlng_from_distance
 from utils import generate_location_graph
@@ -64,59 +65,105 @@ def get_unique_segments(street_data):
     return street_data
 
 
-def check_coordinate_bounds(cur_lat, cur_lng, coords):
+def check_coordinate_bounds(cur_lat, cur_lng, next_lat, next_lng, new_lat, new_lng):
     """
     Verify that current coordinates are within the segment's length.
     :param cur_lat: (float)
     :param cur_lng: (float)
-    :param coords: (list)
-    :return: (tuple of boolean)
+    :param next_lng: (float)
+    :param next_lat: (float)
+    :param new_lng: (float)
+    :param new_lat: (float)
+    :return: (bool)
     """
-    lat_in_bounds, lng_in_bounds = False, False
+    # Get current Point and next Points
+    cur_point = Point(cur_lng, cur_lat)
+    next_point = Point(next_lng, next_lat)
+    new_point = Point(new_lng, new_lat)
 
-    # Get start and end points
-    init_lat, init_lng = coords[0][1], coords[0][0]
-    final_lat, final_lng = coords[-1][1], coords[-1][0]
-
-    # Check bounds
-    if init_lat <= cur_lat <= final_lat or final_lat <= cur_lat <= init_lat:
-        lat_in_bounds = True
-    if init_lng <= cur_lng <= final_lng or final_lng <= cur_lng <= init_lng:
-        lng_in_bounds = True
-
-    return lat_in_bounds and lng_in_bounds
+    # Compare distances
+    if cur_point.distance(new_point) < cur_point.distance(next_point):
+        return True
+    else:
+        return False
 
 
-def generate_latlng(geometry, bearing):
+def get_edge_bearing(cur_lat, cur_lng, next_lat, next_lng):
+    """
+    Returns the bearing for a given edge defined by two nodes.
+    :param cur_lng: (float)
+    :param cur_lat: (float)
+    :param next_lng: (float)
+    :param next_lat: (float)
+    :return: (float)
+    """
+    # Get current Point and next Points
+    cur_point, next_point = Point(cur_lng, cur_lat), Point(next_lng, next_lat)
+
+    # Filter street segment full data
+    subsegments = street_segments_full.copy()
+    subsegments = subsegments[
+        ((subsegments['node1'] == cur_point) & (subsegments['node2'] == next_point)) |
+        ((subsegments['node2'] == cur_point) & (subsegments['node1'] == next_point))]
+
+    # Get bearing
+    if len(subsegments) == 1:
+        return subsegments.iloc[0]['bearing']
+    else:
+        return np.nan
+
+
+def generate_latlng(linestring, bearing):
     """
     Generate a list of (coordinate, headings) that traverses each street
     segment.
     :param bearing: (float) bearing in degrees
-    :param geometry: (shapely.geometry.LineString)
-    :return: (list) of (lat, lng, heading1, heading2) tuples representing the segment
+    :param linestring: (shapely.geometry.LineString)
+    :return: (list) of ((lat, lng), heading1, heading2) tuples representing the segment
     """
     if pd.isna(bearing):
         return []
-    # TODO handle curved streets
-    # Get line segment coordinates
-    coords = list(geometry.coords)
-    cur_lat, cur_lng = coords[0][1], coords[0][0]
 
-    # Generate pairs of new (lat, lng) coordinates
-    coordinates = [(cur_lat, cur_lng)]
-    in_bounds = True
-    while in_bounds:
-        new_lat, new_lng = generate_new_latlng_from_distance(
-            cur_lat=cur_lat, cur_lng=cur_lng, segment_bearing=bearing,
-            distance=DIST, radius=R)
-        coordinates.append((new_lat, new_lng))
+    # Get line segment coordinates and current bearing
+    line_segment_coords = list(linestring.coords)
 
-        # Update coordinates and check bounds
-        cur_lat, cur_lng = new_lat, new_lng
-        in_bounds = check_coordinate_bounds(
-            cur_lat=cur_lat, cur_lng=cur_lng, coords=coords)
+    # Generate pairs of new ((lat, lng), heading1, heading2) tuples for GSV calls
+    GSV_tuples = []
+    for i, (lng, lat) in enumerate(line_segment_coords):
+        cur_lat, cur_lng = lat, lng
 
-    return coordinates
+        # Get an adjacent node in order to obtain a bearing
+        if i == len(line_segment_coords) - 1:
+            next_lng, next_lat = line_segment_coords[i - 1]
+        else:
+            next_lng, next_lat = line_segment_coords[i + 1]
+
+        # Get the headings for the current node
+        cur_bearing = get_edge_bearing(cur_lat, cur_lng, next_lat, next_lng)
+        heading1, heading2 = compute_heading(cur_bearing)
+
+        # Add the current node to the list of coordinates
+        GSV_tuples.append(((cur_lat, cur_lng), heading1, heading2))
+
+        # Take straight steps in the direction of the current bearing while
+        # we reach the next node
+        in_bounds = True if i < len(line_segment_coords) - 1 else False
+
+        while in_bounds:
+            new_lat, new_lng = generate_new_latlng_from_distance(
+                cur_lat=cur_lat, cur_lng=cur_lng, segment_bearing=cur_bearing,
+                distance=DIST, radius=R)
+
+            # Check bounds
+            in_bounds = check_coordinate_bounds(
+                cur_lat=cur_lat, cur_lng=cur_lng, next_lat=next_lat,
+                next_lng=next_lng, new_lat=new_lat, new_lng=new_lng)
+
+            if in_bounds:
+                cur_lat, cur_lng = new_lat, new_lng
+                GSV_tuples.append(((cur_lat, cur_lng), heading1, heading2))
+
+    return GSV_tuples
 
 
 # Define the neighborhood and generate the simplified and full graphs
@@ -161,24 +208,24 @@ street_segments = get_unique_segments(street_segments)
 street_segments_full = get_unique_segments(street_segments_full)
 # assert (num_street_segments == len(street_segments))
 # TODO For SF we compute 576 fewer segments
-
-# Get 'heading' parameter for GSV call
 # TODO: how to identify correct heading for a street like Guerrero?
-street_segments[['heading1', 'heading2']] = \
-    street_segments['bearing'].apply(compute_heading).tolist()
+
+# Get the (begin, end) nodes from the full street data for each subsegment
+street_segments_full[['node1']] = street_segments_full['geometry'].apply(
+    lambda x: Point(np.array(x.coords[0], dtype=object)))
+street_segments_full[['node2']] = street_segments_full['geometry'].apply(
+    lambda x: Point(np.array(x.coords[1], dtype=object)))
 
 # Generate (lat, lng) coordinates for each street segment
 # Note: Segment representations can be normalized using street length
-street_segments['coordinates'] = \
-    street_segments.apply(lambda x: generate_latlng(x['geometry'], x['bearing']),
-                          axis=1)
+street_segments['coordinates'] = street_segments.apply(
+    lambda x: generate_latlng(x['geometry'], x['bearing']), axis=1)
 
 # Final dataset structure:
 # (segment id, street name, street length (meters), street bearing (degrees),
-# heading1, heading2, list of coordinates)
+# list of coordinates and headings)
 street_segments = street_segments[
-    ['segment_id', 'name', 'length', 'bearing', 'heading1', 'heading2',
-     'coordinates']]
+    ['segment_id', 'name', 'length', 'bearing', 'coordinates']]
 street_segments.reset_index(inplace=True, drop=True)
 
 # Export dataset
