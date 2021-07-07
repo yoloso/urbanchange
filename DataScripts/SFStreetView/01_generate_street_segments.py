@@ -6,6 +6,7 @@ import os
 import osmnx as ox
 import pandas as pd
 from shapely.geometry import Point
+from tqdm import tqdm
 
 from utils import compute_heading, generate_new_latlng_from_distance
 from utils import generate_location_graph
@@ -15,7 +16,7 @@ from utils import generate_location_graph
 R = 6378.1  # Radius of the Earth
 DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
-SELECTED_LOCATION = 'MissionDistrictBlock'
+SELECTED_LOCATION = 'GoldenGateHeights'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
 VISUALIZE = True
 
@@ -206,15 +207,21 @@ def plot_traversal(df):
     fig.show()
 
 
+# Track progress when generating coordinates for each street segment
+tqdm.pandas()
+
 # Define the neighborhood and generate the simplified and full graphs
 neighborhood = LOCATIONS[SELECTED_LOCATION]
 G = generate_location_graph(
-    loc_type=neighborhood['type'], location=neighborhood['location'], simplify=True)
+    loc_type=neighborhood['type'], location=neighborhood['location'],
+    simplify=True)
 G_full = generate_location_graph(
-    loc_type=neighborhood['type'], location=neighborhood['location'], simplify=False)
+    loc_type=neighborhood['type'], location=neighborhood['location'],
+    simplify=False)
 nodes, edges = ox.graph_to_gdfs(G)
 
 # Visualize neighborhood
+print('[INFO] Visualizing {}'.format(SELECTED_LOCATION))
 G_projected = ox.project_graph(G)
 ox.plot_graph(G_projected)
 
@@ -257,7 +264,9 @@ street_segments_full[['node2']] = street_segments_full['geometry'].apply(
 
 # Generate (lat, lng) coordinates for each street segment
 # Note: Segment representations can be normalized using street length
-street_segments['coordinates'] = street_segments.apply(
+print('[INFO] Generating coordinates for {} street segments.'.format(
+    len(street_segments)))
+street_segments['coordinates'] = street_segments.progress_apply(
     lambda x: generate_latlng(x['geometry'], x['bearing'],
                               visualize=False), axis=1)
 
@@ -269,6 +278,7 @@ street_segments = street_segments[
 street_segments.reset_index(inplace=True, drop=True)
 
 # Export dataset
+print('[INFO] Exporting street segment dictionary.')
 if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
 street_segments.to_json(os.path.join(OUTPUT_PATH, OUTPUT_FILE), orient='index')
