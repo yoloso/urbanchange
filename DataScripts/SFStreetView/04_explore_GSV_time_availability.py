@@ -12,8 +12,8 @@ from locations import LOCATIONS
 
 # Parameters
 YEARS = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
-SELECTED_NEIGHBORHOOD = 'MissionDistrict'
-LOCATION_TYPE = ['random', 'segmentDictionary'][0]
+SELECTED_NEIGHBORHOOD = 'GoldenGateHeights'
+LOCATION_TYPE = ['random', 'segmentDictionary'][1]
 NUM_LOCATIONS = 5000
 INPUT_PATH = os.path.join(
     '..', '..', 'Outputs', 'SFStreetView', 'Time_availability',
@@ -130,9 +130,8 @@ neighborhood_map = folium.Map(
     location=neighborhood['start_location'], zoom_start=12)
 
 for year in years_str:
+    # Create annual layer and add its markers
     layer = folium.FeatureGroup(name=year, show=False)
-
-    # Add markers
     for feature in points.data['features']:
         if feature['geometry']['type'] == 'Point':
             folium.CircleMarker(
