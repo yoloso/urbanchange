@@ -17,9 +17,9 @@ from utils import generate_location_graph
 R = 6378.1  # Radius of the Earth
 DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
-SELECTED_LOCATION = 'GoldenGateHeights'
+SELECTED_LOCATION = 'MissionDistrict'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
-VISUALIZE = True
+VISUALIZE = False
 
 
 # Helper functions

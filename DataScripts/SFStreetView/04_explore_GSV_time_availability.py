@@ -1,26 +1,33 @@
 import folium
+import geopandas as gpd
+import json
 import numpy as np
 import os
 import pandas as pd
+from shapely.geometry import Point
 import streetview
 from tqdm import tqdm
 
 from locations import LOCATIONS
 
-
 # Parameters
 YEARS = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
 SELECTED_NEIGHBORHOOD = 'MissionDistrict'
+LOCATION_TYPE = ['random', 'segmentDictionary'][0]
 NUM_LOCATIONS = 5000
 INPUT_PATH = os.path.join(
     '..', '..', 'Outputs', 'SFStreetView', 'Time_availability',
-    'GSV_locations_{}.csv'.format(SELECTED_NEIGHBORHOOD))
+    'GSV_{}_locations_{}.csv'.format(LOCATION_TYPE, SELECTED_NEIGHBORHOOD))
+SEGMENT_DICTIONARY = os.path.join(
+    '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
+    'segment_dictionary_{}.json'.format(SELECTED_NEIGHBORHOOD))
 OUTPUT_PATH = os.path.join(
     '..', '..', 'Outputs', 'SFStreetView', 'Time_availability')
 
 # Get neighborhood
 neighborhood = LOCATIONS[SELECTED_NEIGHBORHOOD]
 grid = neighborhood['location']
+years_str = [str(year) for year in YEARS]
 
 
 # Helper functions
@@ -53,21 +60,8 @@ def query_location(lat, lng):
     return selected_year_availability
 
 
-def add_marker(lat, lng, year_bool, location_map):
-    """
-    Add a marker to a map and color it according to a boolean variable (year_bool).
-    :param location_map: (folium.Map)
-    :param lat: (float)
-    :param lng: (float)
-    :param year_bool: (bool)
-    :return: folium.CircleMarker
-    """
-    # Get color
-    color = 'blue' if year_bool == 1 else 'gray'
-
-    # Add to map
-    folium.CircleMarker(
-        location=[lat, lng], radius=1, color=color, alpha=0.6).add_to(location_map)
+def color_marker(year_bool):
+    return 'blue' if year_bool else 'gray'
 
 
 # Track progress
@@ -80,35 +74,74 @@ if not os.path.exists(OUTPUT_PATH):
 
 # Generate random locations to query if input path is not specified
 if not os.path.exists(INPUT_PATH):
-    print('[INFO] Generating random locations...')
-    np.random.seed(42)
-    lats = np.random.uniform(
-        low=grid[1][0], high=grid[0][0], size=NUM_LOCATIONS)
-    lngs = np.random.uniform(
-        low=grid[1][1], high=grid[0][1], size=NUM_LOCATIONS)
-    locations = pd.DataFrame({'lat': lats, 'lng': lngs})
+    if LOCATION_TYPE == 'random':
+        print('[INFO] Generating random locations...')
+        np.random.seed(42)
+        lats = np.random.uniform(
+            low=grid[1][0], high=grid[0][0], size=NUM_LOCATIONS)
+        lngs = np.random.uniform(
+            low=grid[1][1], high=grid[0][1], size=NUM_LOCATIONS)
+        locations = pd.DataFrame({'lat': lats, 'lng': lngs})
+
+    elif LOCATION_TYPE == 'segmentDictionary':
+        # Read in segment dictionary
+        print('[INFO] Loading {} segment dictionary.'.format(SELECTED_NEIGHBORHOOD))
+        try:
+            with open(SEGMENT_DICTIONARY, 'r') as file:
+                segments = json.load(file)
+        except FileNotFoundError:
+            raise Exception('[ERROR] Segment dictionary not found.')
+
+        # Create DataFrame of locations
+        print('[INFO] Creating DataFrame with location coordinates.')
+        locations = pd.DataFrame({'lat': [], 'lng': []})
+        for key, segment in tqdm(segments.items()):
+            for (lat, lng), h1, h2 in segment['coordinates']:
+                locations = locations.append(
+                    {'lat': lat, 'lng': lng}, ignore_index=True)
+
+    else:
+        raise Exception(
+            '[ERROR] Location type must be one of [random, segmentDictionary]')
 
     # Query each location
-    years_str = [str(year) for year in YEARS]
+    print('[INFO] Querying each location to check annual availability.')
     locations[years_str] = \
         locations.progress_apply(
-        lambda x: query_location(x['lat'], x['lng']), axis=1).tolist()
+            lambda x: query_location(x['lat'], x['lng']), axis=1).tolist()
 
     locations.to_csv(os.path.join(
-        OUTPUT_PATH, 'GSV_locations_{}.csv'.format(SELECTED_NEIGHBORHOOD)))
+        OUTPUT_PATH, 'GSV_{}_locations_{}.csv'.format(
+            LOCATION_TYPE, SELECTED_NEIGHBORHOOD)))
 else:
     print('[INFO] Loading locations file from input path.')
     locations = pd.read_csv(INPUT_PATH)
 
+# Generate Point objects and GeoDataFrame
+locations['geometry'] = locations.apply(
+    lambda x: Point(x['lng'], x['lat']), axis=1)
+gdf = gpd.GeoDataFrame(locations, geometry='geometry')
+gdf.crs = "EPSG:4326"
+points = folium.GeoJson(gdf)
 
 # Visualize image availability for each year
-print('[INFO] Generating yearly maps.')
-for year in years_str:
-    # Load map centred on average coordinates
-    neighborhood_map = folium.Map(location=neighborhood['start_location'], zoom_start=12)
-    locations.apply(
-        lambda x: add_marker(x['lat'], x['lng'], x[year], neighborhood_map), axis=1)
+print('[INFO] Generating map with yearly layers.')
+neighborhood_map = folium.Map(
+    location=neighborhood['start_location'], zoom_start=12)
 
-    # Save map
-    neighborhood_map.save(os.path.join(
-        OUTPUT_PATH, '{}_{}.html'.format(SELECTED_NEIGHBORHOOD, year)))
+for year in years_str:
+    layer = folium.FeatureGroup(name=year, show=False)
+
+    # Add markers
+    for feature in points.data['features']:
+        if feature['geometry']['type'] == 'Point':
+            folium.CircleMarker(
+                location=list(reversed(feature['geometry']['coordinates'])),
+                radius=1,
+                color=color_marker(feature['properties'][year])).add_to(layer)
+    layer.add_to(neighborhood_map)
+
+# Add Layer control and save map
+folium.LayerControl().add_to(neighborhood_map)
+neighborhood_map.save(os.path.join(
+    OUTPUT_PATH, '{}_{}.html'.format(SELECTED_NEIGHBORHOOD, LOCATION_TYPE)))
