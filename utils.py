@@ -125,24 +125,23 @@ def reverse_geocode(params):
 
 
 # Street network graphs ----------------------------------
-def generate_location_graph(loc_type, location, simplify):
+def generate_location_graph(neighborhood, simplify):
     """
     Generates a networkx.MultiDiGraph of a location's street network.
-    :param loc_type: (str) one of ['box', 'place']
-    :param location: (str) if loc_type == 'place' or list of bounding box
-    coordinates if loc_type == 'box'
+    :param neighborhood: (dict)
     :param simplify: (bool) whether the street network should be simplified
     (e.g. to include nodes along a curved street)
     :return: (networkx.MultiDiGraph)
     """
-    if loc_type == 'box':
+    if neighborhood['type'] == 'box':
         graph = ox.graph_from_bbox(
-            location[0][0], location[1][0], location[0][1], location[1][1],
+            neighborhood['location'][0][0], neighborhood['location'][1][0],
+            neighborhood['location'][0][1], neighborhood['location'][1][1],
             network_type='drive', simplify=simplify)
         return graph
-    elif loc_type == 'place':
+    elif neighborhood['type'] == 'place':
         graph = ox.graph_from_place(
-            location, network_type='drive', simplify=simplify)
+            neighborhood['name'], network_type='drive', simplify=simplify)
         return graph
     else:
         raise Exception('[ERROR] Location type must be one of [box, place]')

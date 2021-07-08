@@ -8,6 +8,7 @@ import pandas as pd
 from shapely.geometry import Point
 from tqdm import tqdm
 
+from locations import LOCATIONS
 from utils import compute_heading, generate_new_latlng_from_distance
 from utils import generate_location_graph
 
@@ -19,32 +20,6 @@ OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
 SELECTED_LOCATION = 'GoldenGateHeights'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
 VISUALIZE = True
-
-LOCATIONS = {
-    'MissionDistrict': {
-        'type': 'box',
-        'location': [[37.76583204171835, -122.43090178068529],
-                     [37.74947816540197, -122.40373636829808]],
-        'start_location': [37.76583204171835, -122.43090178068529]
-    },
-    'MissionDistrictBlock': {
-        'type': 'box',
-        'location': [[37.76510958212885, -122.42461359879468],
-                     [37.762898815227565, -122.42121402824374]],
-        'start_location': [37.76510958212885, -122.42461359879468]
-    },
-    'SanFrancisco': {
-        'type': 'place',
-        'location': 'San Francisco, California',
-        'start_location': [37.76510958212885, -122.42461359879468]
-    },
-    'GoldenGateHeights': {
-        'type': 'box',
-        'location': [[37.76144285680283, -122.47511505804738],
-                     [37.75225352830853, -122.4671005110224]],
-        'start_location': [37.76144285680283, -122.47511505804738]
-    }
-}
 
 
 # Helper functions
@@ -212,12 +187,8 @@ tqdm.pandas()
 
 # Define the neighborhood and generate the simplified and full graphs
 neighborhood = LOCATIONS[SELECTED_LOCATION]
-G = generate_location_graph(
-    loc_type=neighborhood['type'], location=neighborhood['location'],
-    simplify=True)
-G_full = generate_location_graph(
-    loc_type=neighborhood['type'], location=neighborhood['location'],
-    simplify=False)
+G = generate_location_graph(neighborhood=neighborhood, simplify=True)
+G_full = generate_location_graph(neighborhood=neighborhood, simplify=False)
 nodes, edges = ox.graph_to_gdfs(G)
 
 # Visualize neighborhood
