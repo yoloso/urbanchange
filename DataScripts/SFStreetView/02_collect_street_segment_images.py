@@ -7,6 +7,7 @@ from tqdm import tqdm
 import CONFIG
 from utils import get_SV_image, get_SV_metadata, Logger
 
+
 # Parameters
 SELECTED_LOCATION = 'MissionDistrictBlock'
 SEGMENT_DICTIONARY = os.path.join(
@@ -50,18 +51,14 @@ def return_optimal_panoid(lat, lng):
 
     # Check availability for selected years
     for panoid in panoid_list:
-        if 'year' in panoid.keys():
+        if 'year' in panoid.keys() and panoid['year'] in PERIOD_SELECTION['bandwidth']:
             pano_date = date(panoid['year'], panoid['month'], 1)
             if abs(pano_date - PERIOD_SELECTION['optimal_date']) < current_optimum:
                 current_optimum = abs(pano_date - PERIOD_SELECTION['optimal_date'])
                 optimal_panoid['pano_id'] = panoid['panoid']
                 optimal_panoid['date'] = pano_date
 
-    # Check threshold
-    if optimal_panoid['date'].year in PERIOD_SELECTION['bandwidth']:
-        return optimal_panoid
-    else:
-        return {'pano_id': None, 'date': None}
+    return optimal_panoid
 
 
 # Load street segment information
@@ -157,7 +154,7 @@ for key, segment in tqdm(segment_dictionary.items()):
                 location_counter += 1
                 main_counter += 1
 
-                image_log = '{} {} {}'.format(
+                image_log = '{} {} {} {}'.format(
                     segment_id, file_name, image_panoid, image_date)
             else:
                 image_log = '{} NotSaved {} {}'.format(
