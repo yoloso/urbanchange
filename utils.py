@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 import json
 import math
@@ -145,6 +146,25 @@ def generate_location_graph(neighborhood, simplify):
         return graph
     else:
         raise Exception('[ERROR] Location type must be one of [box, place]')
+
+
+# Logger -------------------------------------------------
+class Logger:
+    def __init__(self, path):
+        """
+        Instantiates the logger as a .txt file at the specified path
+        :param path: (str) path to model outputs
+        """
+        self.path = path
+
+    def write(self, text):
+        """
+        Writes text to logger.
+        :param text: (str)
+        :return: void
+        """
+        with open(self.path, 'a+') as file:
+            file.write(text + '\n')
 
 
 # Processing images and annotations -----------------------
