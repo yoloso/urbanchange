@@ -1,3 +1,17 @@
+# locations.py
+# Dictionary of locations for which to generate street segments, GSV imagery
+# and visualizations.
+# Usage: Add a location by inserting a new key and dictionary with the following
+# items:
+#       - 'type': one of ['box', 'place']. A 'box' is a bounding box specified
+#         by four coordinates in the 'location' key. A 'place' is a location
+#         that is automatically recognized on OpenStreetMap (OSM) such as a city
+#       - 'location': Four coordinates representing a bounding box of the location
+#       - 'start_location': A (lat, lng) pair to be used to center the map of
+#         the location.
+#       - 'name': The name of a 'place' type location as recognized in OSM
+
+
 LOCATIONS = {
     'MissionDistrict': {
         'type': 'box',

@@ -13,6 +13,7 @@
 #       - LOCATIONS dictionary including a dictionary for the selected location.
 # Outputs:
 #       - JSON dictionary located at OUTPUT_PATH.
+#       - If VISUALIZE: HTML file containing a map of the location's edges
 
 import folium
 import geopandas as gpd
@@ -222,7 +223,7 @@ if VISUALIZE:
     Gmap = folium.Map(neighborhood['start_location'], zoom_start=15,
                       tiles='CartoDb dark_matter')
     folium.GeoJson(edges, style_function=lambda x: style).add_to(Gmap)
-    Gmap.save('{}Edges.html'.format(SELECTED_LOCATION))
+    Gmap.save(os.path.join(OUTPUT_PATH, '{}Edges.html'.format(SELECTED_LOCATION)))
 
 # Add street bearings
 # Note: "Bearing represents angle in degrees (clockwise) between north and the
