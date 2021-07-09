@@ -14,13 +14,13 @@ SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
 
-TIME_PERIOD = ['latest_available', 'selected'][1]
+TIME_PERIOD = ['google_default', 'selected'][1]
 PERIOD_SELECTION = {
     'optimal_date': date(2021, 2, 1),
     'bandwidth': [2020, 2021]
 }
 
-if TIME_PERIOD == 'latest_available':
+if TIME_PERIOD == 'google_default':
     OUTPUT_PATH = os.path.join(
         '..', '..', 'Data', 'ProcessedData', 'SFStreetView', SELECTED_LOCATION)
 else:
@@ -105,14 +105,14 @@ for key, segment in tqdm(segment_dictionary.items()):
         if TIME_PERIOD == 'selected':
             image_metadata = return_optimal_panoid(lat, lng)
             image_date = image_metadata['date']
-        elif TIME_PERIOD == 'latest_available':
+        elif TIME_PERIOD == 'google_default':
             img_params['location'] = '{},{}'.format(lat, lng)
             image_metadata = get_SV_metadata(params=img_params)
             image_date = date(int(image_metadata['date'].split('-')[0]),
                               int(image_metadata['date'].split('-')[1]), 1)
         else:
             raise Exception('[ERROR] TIME_PERIOD should be one of '
-                            '[selected, latest_available]')
+                            '[selected, google_default]')
         image_panoid = image_metadata['pano_id']
 
         # Get the image for each heading from this panorama

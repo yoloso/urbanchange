@@ -157,6 +157,9 @@ class Logger:
         """
         self.path = path
 
+        with open(self.path, 'w') as file:
+            file.write('')
+
     def write(self, text):
         """
         Writes text to logger.
