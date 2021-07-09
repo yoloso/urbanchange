@@ -1,3 +1,19 @@
+# 01_generate_street_segments.py
+#
+# Generates a json dictionary of street segments for a given location,
+# including: segment ID, street name, segment length, segment bearing,
+# and a list of coordinates representing the segment (at a distance of DIST).
+#
+# Usage: Add selected location to the LOCATIONS dictionary in locations.py and
+# replace the SELECTED_LOCATION parameter in line 36 with the dictionary key.
+# If you wish to visualize a map of the selected location, replace the
+# VISUALIZE parameter in line 38 with True.
+#
+# Inputs:
+#       - LOCATIONS dictionary including a dictionary for the selected location.
+# Outputs:
+#       - JSON dictionary located at OUTPUT_PATH.
+
 import folium
 import geopandas as gpd
 import matplotlib.pyplot as plt

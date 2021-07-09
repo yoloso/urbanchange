@@ -1,3 +1,32 @@
+# 03_explore_GSV_time_availability.py
+#
+# Generates maps for a selected location reflecting the availability of GSV
+# imagery for different years.
+#
+# Usage: Add selected location to the LOCATIONS dictionary in locations.py and
+# replace the SELECTED_NEIGHBORHOOD parameter in line 45 with the dictionary key.
+# Modify the LOCATION_TYPE parameter in line 46 to 'random' if no segment
+# dictionary has been generated for a location, or to 'segmentDictionary' to
+# query along the location's street segments. If you wish to query along the
+# street segments, script 01_generate_street_segments.py must already be run on
+# the selected location. Modify the years for which to query in the YEARS
+# parameter on line 44. If you wish to query randomly, modify the number of
+# random locations to generate NUM_LOCATIONS.
+#
+# Inputs:
+#       - LOCATIONS dictionary including a dictionary for the selected location.
+#       - If you wish to generate a map along the street segments: JSON
+#         dictionary containing the street segments for the selected location
+#         at SEGMENT_DICTIONARY
+# Outputs:
+#       - CSV file containing a list of coordinates (either random or along the
+#         street segments), and True/False values for each year reflecting
+#         image availability. This is used as an input to generate the maps and
+#         is saved because querying for availability is time consuming.
+#       - HTML file containing the map for the selected location and coordinate
+#         location type at OUTPUT_PATH
+
+
 import folium
 import geopandas as gpd
 import json

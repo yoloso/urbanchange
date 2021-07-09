@@ -1,3 +1,29 @@
+# 02_collect_street_segment_images.py
+#
+# Collects the GSV imagery along the street segments of a selected location
+# and for a selected time period.
+#
+# Usage: Add selected location to the LOCATIONS dictionary in locations.py and
+# replace the SELECTED_LOCATION parameter in line 38 with the dictionary key.
+# Script 01_generate_street_segments.py must already be run on the selected
+# location in order to collect the imagery. Modify the TIME_PERIOD parameter in
+# line 43 by indicating whether to download the Google default images or the
+# images for a selected time period. If you wish to download images for a
+# particular time period, modify the PERIOD_SELECTION dictionary. The
+# 'optimal_date' key should be a date object (year, month, day) representing the
+# optimal timestamp the images should have. The 'bandwidth' key represents the
+# appropriate threshold for the images' timestamp; any locations without
+# panoramas for these years will have missing images.
+#
+# Inputs:
+#       - LOCATIONS dictionary including a dictionary for the selected location.
+#       - JSON dictionary containing the street segments for the selected
+#         location at SEGMENT_DICTIONARY
+# Outputs:
+#       - GSV Images for the selected time period and location at OUTPUT_PATH
+#       - TXT file recording the image retrieval process at each coordinate.
+
+
 from datetime import date, timedelta
 import json
 import os
