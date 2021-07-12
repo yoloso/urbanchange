@@ -1,3 +1,8 @@
+# visualize_urban_quality.py
+#
+# PENDING
+
+
 import branca.colormap as cm
 import folium
 import geopandas as gpd
@@ -15,10 +20,10 @@ from utils import generate_location_graph
 # Parameters
 SELECTED_LOCATION = 'MissionDistrict'
 INPUT_PATH = os.path.join(
-    '..', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
+    'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
     'Segments_{}.csv'.format(SELECTED_LOCATION))
 OUTPUT_PATH = os.path.join(
-    '..', '..', 'Outputs', 'SFStreetView', 'Urban_quality')
+    'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality')
 CMAP = cm.LinearColormap(
     colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
 
@@ -32,7 +37,7 @@ nodes, edges = ox.graph_to_gdfs(G)
 # TODO Replace --------------------------------
 np.random.seed(42)
 SEGMENT_DICTIONARY = os.path.join(
-    '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
+    'DataScripts', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
 try:
     print('[INFO] Loading segment dictionary for {}'.format(SELECTED_LOCATION))
@@ -87,5 +92,6 @@ gdf['color'] = gdf.apply(lambda row: CMAP(row['value']), axis=1)
 fig, ax = plt.subplots(figsize=(10, 10))
 gdf.plot(ax=ax, color=gdf['color'])
 plt.axis('off')
+plt.title('Mission District')
 plt.savefig(os.path.join(
     OUTPUT_PATH, 'Segments_StaticMap_{}.png'.format(SELECTED_LOCATION)))
