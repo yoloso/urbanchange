@@ -1,9 +1,20 @@
 # detect_segments.py
+# Collects each object instance detected in the street segment images of a
+# given neighborhood, including its bounding box (bbox) size and confidence.
 #
-# Usage:
+# Usage: Run the following command in terminal (modified to your neighborhood of choice)
+#   python detect_segments.py -w path_to_weights.pt -s 1080
+#   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrictBlock.json
+#   -o Outputs/Detection/MissionDistrictBlock_2011-02-01_3/
+#   -i Data/ProcessedData/SFStreetView/MissionDistrictBlock_2011-02-01_3/
 #
-# Inputs:
+# Data inputs:
+#   - Segment dictionary for the selected location (from 01_generate_street_segments.py)
+#   - Directory containing the location's images (from 02_collect_street_segment_images.py)
+#
 # Outputs:
+#   - CSV file including one row per detected object instance, saved to the
+#     selected output_path
 
 import argparse
 import glob
@@ -11,9 +22,7 @@ import json
 import numpy as np
 import os
 import pandas as pd
-from PIL import Image
 import torch
-import torchvision
 from tqdm import tqdm
 
 
@@ -30,19 +39,38 @@ parser.add_argument('-i', '--input_images', required=True,
                     help='Path to input images for inference')
 
 
-def get_object_count(img_result, model_names_list):
+def get_objects(img_result, model_names_list, image_path, seg_id):
     """
-    Counts the number of instances of each object class in an image.
+    Returns a dictionary including the bbox size, confidence and class of each
+    object instance detected in an image.
     :param img_result: (tensor) of size (number of objects detected, 6),
     where the columns represent: x1, y1, x2, x2, confidence, class
     :param model_names_list: (list) of classes being predicted (in the order
     they are being encoded)
+    :param seg_id: (str)
+    :param image_path: (str)
     :return: (dict) including the count for each of the classes in model_names_list
     """
-    object_count_dict = {}
-    for j in range(len(model_names_list)):
-        object_count_dict[model_names_list[j]] = (img_result[:, -1] == j).sum().item()
-    return object_count_dict
+    object_dict = {}
+    num_objects = img_result.shape[0]
+    img_result = img_result.numpy()
+
+    # Add image and segment ID
+    object_dict['segment_id'] = [seg_id] * num_objects
+    img_id = image_path.split(os.path.sep)[-1]. \
+        split('img_{}_'.format(seg_id))[-1].split('.png')[0]
+    object_dict['img_id'] = [img_id] * num_objects
+
+    # Get objects
+    object_dict['confidence'] = img_result[:, 4].tolist()
+    object_dict['bbox_size'] = np.multiply(
+        img_result[:, 2] - img_result[:, 0], img_result[:, 3] - img_result[:, 1]).tolist()
+
+    # Get object classes
+    obj_classes = img_result[:, 5].tolist()
+    object_dict['class'] = [model_names_list[int(c_id)] for c_id in obj_classes]
+
+    return object_dict
 
 
 if __name__ == '__main__':
@@ -67,10 +95,9 @@ if __name__ == '__main__':
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_weights)
 
     # Set up segment vector DataFrame
-    df_columns = {'segment_id': [], 'img_id': []}
+    df_columns = {'segment_id': [], 'img_id': [], 'confidence': [],
+                  'bbox_size': [], 'class': []}
     model_names = model.names
-    for name in model_names:
-        df_columns[name] = []
     segment_vectors = pd.DataFrame(df_columns)
 
     # Verify image neighborhood matches segment dictionary neighborhood
@@ -95,19 +122,15 @@ if __name__ == '__main__':
 
         # Add to segment vector DataFrame
         for i in range(len(results)):
-            # Get object count and image ID
-            object_count = get_object_count(results.xyxy[i], model_names)
-            img_id = image_paths[i].split(os.path.sep)[-1].\
-                split('img_{}_'.format(segment_id))[-1].split('.png')[0]
+            # Get objects and image ID
+            img_objects = get_objects(
+                results.xyxy[i], model_names, image_paths[i], segment_id)
 
-            # Append to DataFrame
-            object_count['segment_id'] = segment_id
-            object_count['img_id'] = img_id
             segment_vectors = segment_vectors.append(
-                object_count, ignore_index=True)
+                pd.DataFrame(img_objects), ignore_index=True)
 
     # Save segment vectors
     if not os.path.exists(output_path):
         print('[INFO] Creating output directories: {}'.format(output_path))
         os.makedirs(output_path)
-    segment_vectors.to_csv(output_path, index=False)
+    segment_vectors.to_csv(os.path.join(output_path, 'detections.csv'), index=False)
