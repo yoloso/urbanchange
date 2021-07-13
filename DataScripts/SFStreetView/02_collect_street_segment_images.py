@@ -35,7 +35,7 @@ from utils import get_SV_image, get_SV_metadata, Logger
 
 
 # Parameters
-SELECTED_LOCATION = 'MissionDistrictBlock'
+SELECTED_LOCATION = 'MissionDistrict'
 SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
@@ -106,6 +106,7 @@ print('[INFO] Saving images for {} street segments.'.format(
     len(segment_dictionary)))
 main_counter = 0
 image_unavailable_counter = 0
+heading_unavailable_counter = 0
 
 for key, segment in tqdm(segment_dictionary.items()):
     # Hash segment ID
@@ -122,9 +123,14 @@ for key, segment in tqdm(segment_dictionary.items()):
     panorama_dict = {}
 
     # These will be used in case a node has no heading information
-    previous_headings = 0, 0
+    previous_headings = None, None
 
-    for (lat, lng), heading1, heading2 in segment['coordinates']:
+    # Drop segments with unavailable headings at first node
+    if segment['coordinates'][0][1] is None or segment['coordinates'][0][2] is None:
+        heading_unavailable_counter += 1
+        continue
+
+    for i, ((lat, lng), heading1, heading2) in enumerate(segment['coordinates']):
         img_params = IMG_PARAMS.copy()
 
         # Get the panorama belonging to a location-time combination
@@ -194,5 +200,6 @@ for key, segment in tqdm(segment_dictionary.items()):
 
 print('[INFO] Image collection complete.'
       ' Loaded {} images for {} street segments. '
-      ' Encountered {} unavailable images.'.format(
-    main_counter, len(segment_dictionary), image_unavailable_counter))
+      ' Encountered {} unavailable images.'
+      ' Encountered {} segments with unavailable first node heading'.format(
+    main_counter, len(segment_dictionary), image_unavailable_counter, heading_unavailable_counter))

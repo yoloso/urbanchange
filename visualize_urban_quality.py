@@ -18,7 +18,7 @@ from utils import generate_location_graph
 
 
 # Parameters
-SELECTED_LOCATION = 'MissionDistrict'
+SELECTED_LOCATION = 'GoldenGateHeights'
 INPUT_PATH = os.path.join(
     'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
     'Segments_{}.csv'.format(SELECTED_LOCATION))
@@ -26,7 +26,6 @@ OUTPUT_PATH = os.path.join(
     'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality')
 CMAP = cm.LinearColormap(
     colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
-
 
 # Define the neighborhood and get graph
 neighborhood = LOCATIONS[SELECTED_LOCATION]
@@ -76,6 +75,7 @@ edges = pd.merge(edges, segment_values, how='left', left_on=['u', 'v'],
 # Check for missing values
 # TODO is this needed?
 
+print('[INFO] Generating maps.')
 # Interactive map
 style_fun = lambda x: {'color': CMAP(x['properties']['value']), 'weight': '1'}
 
