@@ -7,7 +7,7 @@ import shutil
 # Parameters
 INPUT_DIR = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView',
                          'Res_640', 'MissionDistrict_2021-02-01_2')
-OUTPUT_DIR = os.path.join('..', '..', 'Data', 'ProcessedData', 'ObjectDetection',
+OUTPUT_DIR = os.path.join('..', '..', 'Data', 'RawData', 'ObjectDetection',
                           'Res_640', 'MissionDistrictTestSet')
 NUM_RANDOM_TEST_IMAGES = 100
 SEGMENT_IDS = ['65307093-65307098'] # evaluate an entire street segment

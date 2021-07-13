@@ -10,7 +10,7 @@ import utils
 
 # Parameters
 ROBOFLOW_DIRECTORY = os.path.join(
-    '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Roboflow', 'Res_640')
+    '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Res_640', 'Roboflow')
 OUTPUT_DIRECTORY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640')
 NUM_VALID_IMAGES = 200
