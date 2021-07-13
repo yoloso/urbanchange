@@ -5,8 +5,8 @@
 # Usage: Run the following command in terminal (modified to your neighborhood of choice)
 #   python detect_segments.py -w path_to_weights.pt -s 1080
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrictBlock.json
-#   -o Outputs/Detection/MissionDistrictBlock_2011-02-01_3/
-#   -i Data/ProcessedData/SFStreetView/MissionDistrictBlock_2011-02-01_3/
+#   -o Outputs/Detection/Res_640/MissionDistrictBlock_2011-02-01_3/
+#   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
 #
 # Data inputs:
 #   - Segment dictionary for the selected location (from 01_generate_street_segments.py)
@@ -114,10 +114,15 @@ if __name__ == '__main__':
         segment_id = json.loads(segment['segment_id'])
         segment_id = '{}-{}'.format(segment_id[0], segment_id[1])
 
-        # Get image predictions
+        # Get segment images
         images = glob.glob(
             os.path.join(input_images, 'img_{}_*.png'.format(segment_id)))
         image_paths = images.copy()
+
+        # Skip the segment if it has no associated images
+        if len(image_paths) == 0:
+            continue
+
         results = model(images, size=image_size)
 
         # Add to segment vector DataFrame

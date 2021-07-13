@@ -20,10 +20,10 @@ from utils import generate_location_graph
 # Parameters
 SELECTED_LOCATION = 'GoldenGateHeights'
 INPUT_PATH = os.path.join(
-    'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
+    '..', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
     'Segments_{}.csv'.format(SELECTED_LOCATION))
 OUTPUT_PATH = os.path.join(
-    'DataScripts', '..', 'Outputs', 'SFStreetView', 'Urban_quality')
+    '..', '..', 'Outputs', 'Urban_quality')
 CMAP = cm.LinearColormap(
     colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
 

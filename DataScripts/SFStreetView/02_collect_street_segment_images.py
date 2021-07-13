@@ -48,10 +48,12 @@ PERIOD_SELECTION = {
 
 if TIME_PERIOD == 'google_default':
     OUTPUT_PATH = os.path.join(
-        '..', '..', 'Data', 'ProcessedData', 'SFStreetView', SELECTED_LOCATION)
+        '..', '..', 'Data', 'ProcessedData', 'SFStreetView', 'Res_640',
+        SELECTED_LOCATION)
 else:
     OUTPUT_PATH = os.path.join(
-        '..', '..', 'Data', 'ProcessedData', 'SFStreetView', '{}_{}_{}'.format(
+        '..', '..', 'Data', 'ProcessedData', 'SFStreetView', 'Res_640',
+        '{}_{}_{}'.format(
             SELECTED_LOCATION, str(PERIOD_SELECTION['optimal_date']),
             len(PERIOD_SELECTION['bandwidth'])))
 
