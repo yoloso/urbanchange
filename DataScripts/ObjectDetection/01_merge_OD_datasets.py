@@ -7,11 +7,14 @@ from zipfile import ZipFile
 
 import utils
 
+
 # Parameters
 ROBOFLOW_DIRECTORY = os.path.join(
-    'Data', 'RawData', 'ObjectDetection', 'Roboflow')
-OUTPUT_DIRECTORY = os.path.join('Data', 'ProcessedData', 'ObjectDetection')
-NUM_VALID_IMAGES = 150
+    '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Roboflow', 'Res_640')
+OUTPUT_DIRECTORY = os.path.join(
+    '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640')
+NUM_VALID_IMAGES = 200
+TRAIN_ONLY_BATCHES = ['batch5.v1-batch5640.yolov5pytorch'] # Marks a directory for train split only (not validation)
 
 # Class dictionary
 CLASSES_FROM_LABEL = {0: 'facade',
@@ -33,6 +36,7 @@ CLASSES_TO_LABEL = {'facade': 0,
                     'graffiti2': 7}
 
 CLASS_LIST = [CLASSES_FROM_LABEL[i] for i in range(len(CLASSES_FROM_LABEL))]
+
 
 # Helper functions
 def check_label_consistency(label_list):
@@ -74,7 +78,7 @@ def correct_annotations(consistency_dictionary, annotation_path):
 
 
 def process_image(image_path, rf_dir, split,
-                  consistent, consistency_dict, counter):
+                  consistent, consistency_dict, counter, train_only):
     # Get the image name (excluding extension)
     image_name = utils.get_image_name(image_path)
 
@@ -88,10 +92,15 @@ def process_image(image_path, rf_dir, split,
             consistency_dictionary=consistency_dict, annotation_path=annot_path)
 
     # Get new file paths for the image and its annotations
-    new_image_path = os.path.join(
-        OUTPUT_DIRECTORY, 'train', 'images', ''.join([image_name, '.jpg']))
-    new_annot_path = os.path.join(
-        OUTPUT_DIRECTORY, 'train', 'labels', ''.join([image_name, '.txt']))
+    if train_only:
+        img_file = ''.join([image_name, '.jpg'])
+        label_file = ''.join([image_name, '.txt'])
+    else:
+        img_file = ''.join([image_name, '_TRAINVAL.jpg'])
+        label_file = ''.join([image_name, '_TRAINVAL.txt'])
+
+    new_image_path = os.path.join(OUTPUT_DIRECTORY, 'train', 'images', img_file)
+    new_annot_path = os.path.join(OUTPUT_DIRECTORY, 'train', 'labels', label_file)
 
     # Check for duplicate file names and copy to output directory
     if not os.path.exists(new_image_path):
@@ -135,6 +144,11 @@ if __name__ == '__main__':
         with ZipFile(dataset, 'r') as file:
             file.extractall(rf_dir)
 
+        # Check if batch is train only
+        train_only = False
+        if dir_name in TRAIN_ONLY_BATCHES:
+            train_only = True
+
         # Check label consistency
         with open(os.path.join(rf_dir, 'data.yaml'), 'r') as file:
             labels = yaml.safe_load(file)['names']
@@ -149,11 +163,12 @@ if __name__ == '__main__':
                     counter = process_image(
                         image_path=image_path, rf_dir=rf_dir, split=split,
                         consistent=consistent, consistency_dict=consistency_dict,
-                        counter=counter)
+                        counter=counter, train_only=train_only)
 
     # Create train/validation split
     print('[INFO] Creating train/validation split...')
-    train_imgs = glob.glob(os.path.join(OUTPUT_DIRECTORY, 'train', 'images', '*'))
+    train_imgs = glob.glob(
+        os.path.join(OUTPUT_DIRECTORY, 'train', 'images', '*_TRAINVAL.jpg'))
     random.seed(42)
     random.shuffle(train_imgs)
     val_imgs = train_imgs[:NUM_VALID_IMAGES]
