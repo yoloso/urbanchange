@@ -9,7 +9,7 @@ from utils import save_SV_image, reverse_geocode
 # Test set parameters
 TARGET_NUM_TEST_IMAGES = 100
 OUTPUT_DIR = os.path.join('..', '..', 'Data', 'RawData',
-                          'ObjectDetection', 'Res_640', 'Test')
+                          'ObjectDetection', 'Res_640', 'MissionDistrictTestSet')
 # Define the grid cell from which we will sample our locations
 GRID = [[37.76583204171835, -122.43090178068529],  # Mission District
         [37.74947816540197, -122.40373636829808]]
