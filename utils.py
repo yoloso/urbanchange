@@ -170,6 +170,24 @@ class Logger:
             file.write(text + '\n')
 
 
+class AppendLogger:
+    def __init__(self, path):
+        """
+        Instantiates the logger as a .txt file at the specified path
+        :param path: (str) path to model outputs
+        """
+        self.path = path
+
+    def write(self, text):
+        """
+        Writes text to logger.
+        :param text: (str)
+        :return: void
+        """
+        with open(self.path, 'a+') as file:
+            file.write(text + '\n')
+
+
 # Processing images and annotations -----------------------
 def get_image_name(image_path):
     image_name = image_path.split(os.path.sep)[-1]

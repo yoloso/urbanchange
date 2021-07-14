@@ -17,6 +17,7 @@
 
 import folium
 import geopandas as gpd
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -27,7 +28,7 @@ from tqdm import tqdm
 
 from locations import LOCATIONS
 from utils import compute_heading, generate_new_latlng_from_distance
-from utils import generate_location_graph
+from utils import generate_location_graph, AppendLogger
 
 
 # Parameters
@@ -36,6 +37,7 @@ DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
 SELECTED_LOCATION = 'MissionDistrict'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
+INTERMEDIATE_FILE_PATH = 'intermediate_segment_dictionary_{}.txt'.format(SELECTED_LOCATION)
 VISUALIZE = False
 
 
@@ -199,8 +201,10 @@ def plot_traversal(df):
     fig.show()
 
 
-# Track progress when generating coordinates for each street segment
-tqdm.pandas()
+# Set up intermediate file to save coordinates
+if not os.path.exists(OUTPUT_PATH):
+    os.makedirs(OUTPUT_PATH)
+temporary_data = AppendLogger(os.path.join(OUTPUT_PATH, INTERMEDIATE_FILE_PATH))
 
 # Define the neighborhood and generate the simplified and full graphs
 neighborhood = LOCATIONS[SELECTED_LOCATION]
@@ -240,7 +244,6 @@ street_segments, street_segments_full = edges_b.copy(), edges_b_full.copy()
 
 # Get unique (node1, node2) edges for the simplified graph
 street_segments = get_unique_segments(street_segments)
-# assert (num_street_segments == len(street_segments))
 # TODO For SF we compute 576 fewer segments
 # TODO: how to identify correct heading for a street like Guerrero?
 
@@ -250,26 +253,59 @@ street_segments_full[['node1']] = street_segments_full['geometry'].apply(
 street_segments_full[['node2']] = street_segments_full['geometry'].apply(
     lambda x: Point(np.array(x.coords[1], dtype=object)))
 
-# Generate (lat, lng) coordinates for each street segment
+# Reset index
+street_segments.reset_index(inplace=True)
+
+# Generate (lat, lng) coordinates for each remaining street segment
 # Note: Segment representations can be normalized using street length
+if not os.path.exists(os.path.join(OUTPUT_PATH, INTERMEDIATE_FILE_PATH)):
+    row_start = 0
+else:
+    with open(os.path.join(OUTPUT_PATH, INTERMEDIATE_FILE_PATH), 'r') as file:
+        # Get last row processed
+        final_line = json.loads(file.readlines()[-1])
+    row_start = int(list(final_line.keys())[0]) + 1
+print('[INFO] Initiating street segment coordinate generation '
+      'from row {}'.format(row_start))
+
 print('[INFO] Generating coordinates for {} street segments.'.format(
-    len(street_segments)))
-street_segments['coordinates'] = street_segments.progress_apply(
-    lambda x: generate_latlng(x['geometry'], x['bearing'],
-                              visualize=False), axis=1)
+    len(street_segments) - row_start))
+for row in tqdm(range(row_start, len(street_segments))):
+    # Get row data
+    segment_id = street_segments.iloc[row]['segment_id']
+    name = street_segments.iloc[row]['name']
+    length = street_segments.iloc[row]['length']
+    bearing = round(street_segments.iloc[row]['bearing'], 2)
+    geometry = street_segments.iloc[row]['geometry']
 
-# Final dataset structure:
-# (segment id, street name, street length (meters), street bearing (degrees),
-# list of coordinates and headings)
-street_segments = street_segments[
-    ['segment_id', 'name', 'length', 'bearing', 'coordinates']]
-street_segments.reset_index(inplace=True, drop=True)
+    # Generate coordinates
+    coords = generate_latlng(geometry, bearing, visualize=False)
 
-# Export dataset
-print('[INFO] Exporting street segment dictionary.')
-if not os.path.exists(OUTPUT_PATH):
-    os.makedirs(OUTPUT_PATH)
-street_segments.to_json(os.path.join(OUTPUT_PATH, OUTPUT_FILE), orient='index')
+    # Save to temporary file
+    row_dict = {row: {'segment_id': segment_id, 'name': name, 'length': length,
+                'bearing': bearing, 'coordinates': coords}}
+    row_str = json.dumps(row_dict)
+    temporary_data.write(row_str)
+
+# Save dataset to final version when complete
+with open(os.path.join(OUTPUT_PATH, INTERMEDIATE_FILE_PATH), 'r') as file:
+    # Read entire dictionary and get last row processed
+    street_segments = file.readlines()
+final_line = json.loads(street_segments[-1])
+last_row = int(list(final_line.keys())[0])
+
+if last_row == len(street_segments) - 1:
+    print('[INFO] Exporting street segment dictionary.')
+    street_segments_dict = {}
+    for segment in street_segments:
+        segment_dict = json.loads(segment)
+        for key, item in segment_dict.items():
+            street_segments_dict[key] = item
+    with open(os.path.join(OUTPUT_PATH, OUTPUT_FILE), 'w') as file:
+        json.dump(street_segments_dict, file)
+else:
+    raise Exception('[ERROR] Incomplete street segments temporary file.')
+
 
 # References
 # https://geoffboeing.com/2016/11/osmnx-python-street-networks/
