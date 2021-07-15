@@ -1,8 +1,8 @@
-# create_representation_vectors.py
+# 02_create_representation_vectors.py
 # Computes a vector representation of each street segment.
 #
 # Usage: Run the following command in terminal (modified to your neighborhood of choice)
-#   python create_representation_vectors.py
+#   python 02_create_representation_vectors.py
 #   -v Outputs/Detection/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -s 640
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
@@ -10,10 +10,10 @@
 #
 # Data inputs:
 #   - CSV file including one row per detected object instance (generated
-#     using detect_segments.py on the selected neighborhoods)
+#     using 01_detect_segments.py on the selected neighborhoods)
 #
 # Outputs:
-#   - CSV file including a representation of each street segment (exported to
+#   - JSON file including a representation of each street segment (exported to
 #     the same directory as the input file)
 # TODO how to deal with overlap?
 import argparse
@@ -28,7 +28,7 @@ from utils import AppendLogger
 # Set up command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--segment_vectors', required=True,
-                    help='Input directory for segment vectors produced by detect_segments.py')
+                    help='Input directory for segment vectors produced by 01_detect_segments.py')
 parser.add_argument('-s', '--image_size', required=True, default=640,
                     help='Image resolution')
 parser.add_argument('-d', '--segment_dictionary', required=True,

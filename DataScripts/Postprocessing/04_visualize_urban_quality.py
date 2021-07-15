@@ -1,4 +1,4 @@
-# visualize_urban_quality.py
+# 04_visualize_urban_quality.py
 #
 # PENDING
 
@@ -20,10 +20,10 @@ from utils import generate_location_graph
 # Parameters
 SELECTED_LOCATION = 'GoldenGateHeights'
 INPUT_PATH = os.path.join(
-    '..', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
+    '../../..', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
     'Segments_{}.csv'.format(SELECTED_LOCATION))
 OUTPUT_PATH = os.path.join(
-    '..', '..', 'Outputs', 'Urban_quality')
+    '../../..', '..', 'Outputs', 'Urban_quality')
 CMAP = cm.LinearColormap(
     colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
 
@@ -36,7 +36,7 @@ nodes, edges = ox.graph_to_gdfs(G)
 # TODO Replace --------------------------------
 np.random.seed(42)
 SEGMENT_DICTIONARY = os.path.join(
-    'DataScripts', '..', 'Data', 'ProcessedData', 'SFStreetView',
+    '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
 try:
     print('[INFO] Loading segment dictionary for {}'.format(SELECTED_LOCATION))

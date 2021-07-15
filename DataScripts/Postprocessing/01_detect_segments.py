@@ -1,9 +1,9 @@
-# detect_segments.py
+# 01_detect_segments.py
 # Collects each object instance detected in the street segment images of a
 # given neighborhood, including its bounding box (bbox) size and confidence.
 #
 # Usage: Run the following command in terminal (modified to your neighborhood of choice)
-#   python detect_segments.py -w path_to_weights.pt -s 1080
+#   python 01_detect_segments.py -w path_to_weights.pt -s 1080
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrictBlock.json
 #   -o Outputs/Detection/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
@@ -24,6 +24,8 @@ import os
 import pandas as pd
 import torch
 from tqdm import tqdm
+
+from utils import AppendLogger
 
 
 # Set up command line arguments
@@ -93,12 +95,11 @@ if __name__ == '__main__':
     # Load model with custom weights
     print('[INFO] Loading YOLOv5 model with custom weights.')
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_weights)
-
-    # Set up segment vector DataFrame
-    df_columns = {'segment_id': [], 'img_id': [], 'confidence': [],
-                  'bbox_size': [], 'class': []}
     model_names = model.names
-    segment_vectors = pd.DataFrame(df_columns)
+
+    # Set up intermediate txt file
+    logger_path = os.path.join(output_path, 'detections_temp.txt')
+    logger = AppendLogger(logger_path)
 
     # Verify image neighborhood matches segment dictionary neighborhood
     segment_neighborhood = \
@@ -107,9 +108,24 @@ if __name__ == '__main__':
     if segment_neighborhood != image_neighborhood:
         raise Exception('[ERROR] Image neighborhood should match segment neighborhood.')
 
+    # Check past progress
+    if not os.path.exists(logger_path):
+        if not os.path.exists(output_path):
+            print('[INFO] Creating output directories: {}'.format(output_path))
+            os.makedirs(output_path)
+        key_start = 0
+    else:
+        with open(logger_path, 'r') as file:
+            processed_segments = file.readlines()
+        processed_segments = [segment.split(' ')[0] for segment in processed_segments]
+        key_start = len(set(processed_segments)) - 1
+
     # Inference on each segment and image
-    print('[INFO] Generating segment vectors for {}'.format(segment_neighborhood))
-    for key, segment in tqdm(segment_dictionary.items()):
+    print('[INFO] Generating {} segment vectors for {}'.format(
+        len(segment_dictionary) - key_start, segment_neighborhood))
+    for key in tqdm(range(key_start, len(segment_dictionary))):
+        segment = segment_dictionary[str(key)]
+
         # Hash segment ID
         segment_id = json.loads(segment['segment_id'])
         segment_id = '{}-{}'.format(segment_id[0], segment_id[1])
@@ -119,23 +135,59 @@ if __name__ == '__main__':
             os.path.join(input_images, 'img_{}_*.png'.format(segment_id)))
         image_paths = images.copy()
 
-        # Skip the segment if it has no associated images
+        # Skip the segment if it has no associated images (identify missing
+        # by adding a row of Nones)
         if len(image_paths) == 0:
+            logger.write('{} {} {} {} {} {}'.format(
+                segment_id, None, None, None, None, None))
             continue
 
         results = model(images, size=image_size)
 
         # Add to segment vector DataFrame
+        # Loop over each image in the segment
         for i in range(len(results)):
             # Get objects and image ID
             img_objects = get_objects(
                 results.xyxy[i], model_names, image_paths[i], segment_id)
 
-            segment_vectors = segment_vectors.append(
-                pd.DataFrame(img_objects), ignore_index=True)
+            # Loop over each object instance in the image and write to logger
+            for j in range(len(img_objects['segment_id'])):
+                logger.write('{} {} {} {} {} {}'.format(
+                    img_objects['segment_id'][j], # Segment ID
+                    img_objects['img_id'][j], # Image ID
+                    j, # Object instance ID
+                    round(img_objects['confidence'][j], 4), # Confidence
+                    round(img_objects['bbox_size'][j], 2), # Bounding box size
+                    img_objects['class'][j] # Class
+                ))
 
-    # Save segment vectors
-    if not os.path.exists(output_path):
-        print('[INFO] Creating output directories: {}'.format(output_path))
-        os.makedirs(output_path)
-    segment_vectors.to_csv(os.path.join(output_path, 'detections.csv'), index=False)
+    # Check number of processed object vectors and save to DataFrame
+    with open(logger_path, 'r') as file:
+        processed_object_vectors = file.readlines()
+    processed_segments = [segment.split(' ')[0] for segment in processed_object_vectors]
+    number_of_processed_segments = len(set(processed_segments))
+
+    # Export to pd.DataFrame if all segments have been processed
+    if number_of_processed_segments == len(segment_dictionary):
+        df_columns = {'segment_id': [], 'img_id': [], 'object_id': [],
+                      'confidence': [], 'bbox_size': [], 'class': []}
+        object_vectors = pd.DataFrame(df_columns)
+
+        # Loop over the object instances
+        for object_instance in processed_object_vectors:
+            segment_id, img_id, object_id, confidence, bbox_size, class_id = \
+                object_instance.rstrip().split(' ')
+            object_instance_dict = {'segment_id': segment_id,
+                                    'img_id': img_id,
+                                    'object_id': object_id,
+                                    'confidence': confidence,
+                                    'bbox_size': bbox_size,
+                                    'class': class_id}
+            object_vectors = object_vectors.append(
+                object_instance_dict, ignore_index=True)
+
+        # Export to CSV
+        object_vectors.to_csv(os.path.join(output_path, 'detections.csv'), index=False)
+    else:
+        raise Exception('[ERROR] Incomplete street segment temporary file.')
