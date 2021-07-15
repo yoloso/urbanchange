@@ -31,11 +31,10 @@ import streetview
 from tqdm import tqdm
 
 import CONFIG
-from utils import get_SV_image, get_SV_metadata, Logger
-
+from utils import get_SV_image, get_SV_metadata, AppendLogger
 
 # Parameters
-SELECTED_LOCATION = 'MissionDistrict'
+SELECTED_LOCATION = 'MissionDistrictBlock'
 SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
@@ -101,16 +100,28 @@ except FileNotFoundError:
 if not os.path.exists(OUTPUT_PATH):
     print('[INFO] Creating output path: {}'.format(OUTPUT_PATH))
     os.makedirs(OUTPUT_PATH)
-logger = Logger(os.path.join(OUTPUT_PATH, 'images.txt'))
+logger = AppendLogger(os.path.join(OUTPUT_PATH, 'images.txt'))
+
+# Identify remaining street segments to collect
+if not os.path.exists(os.path.join(OUTPUT_PATH, 'images.txt')):
+    start_key = 0
+else:
+    with open(os.path.join(OUTPUT_PATH, 'images.txt')) as file:
+        images_file = file.readlines()
+    collected_keys = [line.split(' ')[0] for line in images_file]
+    collected_keys = set(collected_keys)
+    start_key = len(collected_keys) - 1
 
 # Save images for each street segment
 print('[INFO] Saving images for {} street segments.'.format(
-    len(segment_dictionary)))
+    len(segment_dictionary) - start_key))
 main_counter = 0
 image_unavailable_counter = 0
 heading_unavailable_counter = 0
 
-for key, segment in tqdm(segment_dictionary.items()):
+for key in tqdm(range(start_key, len(segment_dictionary))):
+    segment = segment_dictionary[str(key)]
+
     # Hash segment ID
     segment_id = json.loads(segment['segment_id'])
     segment_id = '{}-{}'.format(segment_id[0], segment_id[1])
@@ -130,6 +141,8 @@ for key, segment in tqdm(segment_dictionary.items()):
     # Drop segments with unavailable headings at first node
     if segment['coordinates'][0][1] is None or segment['coordinates'][0][2] is None:
         heading_unavailable_counter += 1
+        image_log = '{} UnavailableFirstHeading NA NA'.format(segment_id)
+        logger.write(image_log)
         continue
 
     for i, ((lat, lng), heading1, heading2) in enumerate(segment['coordinates']):
@@ -204,4 +217,5 @@ print('[INFO] Image collection complete.'
       ' Loaded {} images for {} street segments. '
       ' Encountered {} unavailable images.'
       ' Encountered {} segments with unavailable first node heading'.format(
-    main_counter, len(segment_dictionary), image_unavailable_counter, heading_unavailable_counter))
+      main_counter, len(segment_dictionary), image_unavailable_counter,
+      heading_unavailable_counter))

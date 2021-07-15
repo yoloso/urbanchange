@@ -97,6 +97,7 @@ if __name__ == '__main__':
             image_log = pd.read_csv(file, sep=' ')
     except FileNotFoundError:
         raise Exception('[ERROR] images.txt file not found.')
+    # TODO convert images.txt to set from list to remove duplicates
 
     # Set up aggregation DataFrames
     # TODO
