@@ -13,22 +13,25 @@
 #     using 01_detect_segments.py on the selected neighborhoods)
 #
 # Outputs:
-#   - JSON file including a representation of each street segment (exported to
-#     the same directory as the input file)
+#   - CSV file including a representation of each street segment (exported to
+#     the same directory as the input file) for each aggregation type
 # TODO how to deal with overlap?
+# TODO must deal with missing imagery to normalize too
+# TODO add normalization
 import argparse
 import json
 import os
 import pandas as pd
 from tqdm import tqdm
 
+from object_classes import CLASSES_TO_LABEL
 from utils import AppendLogger
 
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('-v', '--segment_vectors', required=True,
-                    help='Input directory for segment vectors produced by 01_detect_segments.py')
+parser.add_argument('-v', '--segment_vectors_dir', required=True,
+                    help='Input directory for object vectors produced by 01_detect_segments.py')
 parser.add_argument('-s', '--image_size', required=True, default=640,
                     help='Image resolution')
 parser.add_argument('-d', '--segment_dictionary', required=True,
@@ -37,7 +40,7 @@ parser.add_argument('-i', '--images_dir', required=True,
                     help='Path to the directory containing images.txt')
 
 
-# Aggregation functions # TODO add normalization
+# Aggregation functions
 def aggregate_count(df, img_size=None):
     """
     Aggregates a DataFrame representing the object instances observed in a
@@ -50,7 +53,13 @@ def aggregate_count(df, img_size=None):
     :return: (dict) of counts for each class
     """
     counts = df[['img_id', 'class']].groupby(['class']).count().squeeze()
-    return counts.to_dict()
+
+    # Normalize
+    # TODO
+
+    # Generate complete dictionary
+    counts = generate_full_agg_dictionary(counts)
+    return counts
 
 
 def aggregate_confidence_weighted(df, img_size=None):
@@ -67,7 +76,13 @@ def aggregate_confidence_weighted(df, img_size=None):
     """
     # Weight counts
     weighted_counts = df[['confidence', 'class']].groupby(['class']).sum().squeeze()
-    return weighted_counts.to_dict()
+
+    # Normalize
+    # TODO
+
+    # Generate complete dictionary
+    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    return weighted_counts
 
 
 def aggregate_bbox_weighted(df, img_size):
@@ -86,7 +101,13 @@ def aggregate_bbox_weighted(df, img_size):
 
     weighted_counts = \
         df[['normalized_bbox', 'class']].groupby(['class']).sum().squeeze()
-    return weighted_counts.to_dict()
+
+    # Normalize
+    # TODO
+
+    # Generate complete dictionary
+    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    return weighted_counts
 
 
 def aggregate_confxbbox_weighted(df, img_size):
@@ -109,7 +130,30 @@ def aggregate_confxbbox_weighted(df, img_size):
 
     weighted_counts = \
         df[['conf_normalized_bbox', 'class']].groupby(['class']).sum().squeeze()
-    return weighted_counts.to_dict()
+
+    # Normalize
+    # TODO
+
+    # Generate complete dictionary
+    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    return weighted_counts
+
+
+# Helper functions
+def generate_full_agg_dictionary(agg_series):
+    """
+    Generates a dictionary including all object classes from a pd.Series
+    :param agg_series: (pd.Series) representing object instance counts or
+    weighted counts for each type of class
+    :return: (dict)
+    """
+    agg_dict = {}
+    for object_class in CLASSES_TO_LABEL.keys():
+        if object_class in agg_series:
+            agg_dict[object_class] = agg_series.loc[object_class]
+        else:
+            agg_dict[object_class] = 0
+    return agg_dict
 
 
 # Define aggregation and normalization types
@@ -124,16 +168,16 @@ NORMALIZATIONS = {'length': None}
 if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
-    segment_vectors_dir = args['segment_vectors']
+    segment_vectors_dir = args['segment_vectors_dir']
     image_size = args['image_size']
     segment_dict_file = args['segment_dictionary']
     images_dir = args['images_dir']
 
-    print('[INFO] Loading segment dictionary, vectors and image log.')
-    # Load segment vectors
+    print('[INFO] Loading segment dictionary, object vectors and image log.')
+    # Load object vectors
     try:
         with open(os.path.join(segment_vectors_dir, 'detections.csv'), 'r') as file:
-            segment_vectors = pd.read_csv(file)
+            object_vectors = pd.read_csv(file)
     except FileNotFoundError:
         raise Exception('[ERROR] Segment vectors file not found.')
 
@@ -174,6 +218,11 @@ if __name__ == '__main__':
             os.path.join(segment_vectors_dir, '{}_{}.txt'.format(
                 location_time, aggregation)))
 
+    # Drop duplicate objects (this may be driven by the 01_detect_segments.py
+    # process stopping and restarting)
+    object_vectors.drop_duplicates(subset=['segment_id', 'img_id', 'object_id'],
+                                   inplace=True)
+
     # Aggregate vectors
     print('[INFO] Computing segment vector representations.')
 
@@ -201,7 +250,7 @@ if __name__ == '__main__':
         length = segment['length']
 
         segment_df = \
-            segment_vectors[segment_vectors['segment_id'] == segment_id].copy()
+            object_vectors[object_vectors['segment_id'] == segment_id].copy()
 
         for aggregation in AGGREGATIONS.keys():
             # Compute aggregation and save to file
@@ -209,21 +258,21 @@ if __name__ == '__main__':
             segment_aggregation = agg_function(segment_df, image_size)
 
             # Tag with the segment ID
-            segment_aggregation = {'segment_id': segment_aggregation}
+            segment_aggregation = {segment_id: segment_aggregation}
             row_str = json.dumps(segment_aggregation)
 
             # Save to file
             agg_logger = aggregation_files[aggregation]
             agg_logger.write(row_str)
 
-    # Save temporary files as JSON
+    # Save temporary files as DataFrames
     print('[INFO] Segment representations generated. Exporting temporary files'
-          'to JSON.')
+          'to DataFrames.')
     for aggregation in AGGREGATIONS.keys():
-        # Get temporary and JSON files for the aggregation
+        # Get temporary and CSV files for the aggregation
         agg_temporary_file = os.path.join(segment_vectors_dir, '{}_{}.txt'.format(
                 location_time, aggregation))
-        agg_json_file = os.path.join(segment_vectors_dir, '{}_{}.json'.format(
+        agg_new_file = os.path.join(segment_vectors_dir, '{}_{}.csv'.format(
                 location_time, aggregation))
 
         # Check number of processed segments
@@ -231,14 +280,27 @@ if __name__ == '__main__':
             vector_representations = file.readlines()
         number_of_processed_segments = len(vector_representations)
 
-        # Export to JSON if all segments have been processed # TODO deal with missings
-        if number_of_processed_segments == len(segment_dictionary) - 1:
-            segment_representations_dict = {}
+        # Export if all segments have been processed
+        if number_of_processed_segments == len(segment_dictionary):
+            # Create base DataFrame
+            df_cols = {'segment_id': []}
+            for object_class in CLASSES_TO_LABEL.keys():
+                df_cols[object_class] = []
+            segment_representations = pd.DataFrame(df_cols)
+
+            # Loop over each segment
             for segment in vector_representations:
                 segment_dict = json.loads(segment)
-                for key, item in segment_dict.items():
-                    segment_representations_dict[key] = item
-            with open(agg_json_file, 'w') as file:
-                json.dump(segment_representations_dict, file)
+                segment_id = list(segment_dict.keys())[0]
+                new_segment_dict = {'segment_id': segment_id}
+                for key, item in segment_dict[segment_id].items():
+                    new_segment_dict[key] = item
+
+                segment_representations = segment_representations.append(
+                    new_segment_dict, ignore_index=True)
+
+            # Save CSV
+            segment_representations.to_csv(agg_new_file, index=False)
+
         else:
             raise Exception('[ERROR] Incomplete street segments representations temporary file.')

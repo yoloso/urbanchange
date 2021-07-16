@@ -5,6 +5,7 @@ import shutil
 import yaml
 from zipfile import ZipFile
 
+from object_classes import CLASSES_FROM_LABEL, CLASSES_TO_LABEL
 import utils
 
 
@@ -15,25 +16,6 @@ OUTPUT_DIRECTORY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640')
 NUM_VALID_IMAGES = 200
 TRAIN_ONLY_BATCHES = ['batch5.v1-batch5640.yolov5pytorch'] # Marks a directory for train split only (not validation)
-
-# Class dictionary
-CLASSES_FROM_LABEL = {0: 'facade',
-                      1: 'graffiti',
-                      2: 'weed',
-                      3: 'garbage',
-                      4: 'pothole',
-                      5: 'tent',
-                      6: 'window',
-                      7: 'graffiti2'}
-
-CLASSES_TO_LABEL = {'facade': 0,
-                    'graffiti': 1,
-                    'weed': 2,
-                    'garbage': 3,
-                    'pothole': 4,
-                    'tent': 5,
-                    'window': 6,
-                    'graffiti2': 7}
 
 CLASS_LIST = [CLASSES_FROM_LABEL[i] for i in range(len(CLASSES_FROM_LABEL))]
 
