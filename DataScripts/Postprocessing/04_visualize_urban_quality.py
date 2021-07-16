@@ -1,7 +1,21 @@
 # 04_visualize_urban_quality.py
+# Visualizes the indices of each street segment in a given location.
 #
-# PENDING
-
+# Usage: Run the following command in terminal (modified to your neighborhood of choice)
+#   python 04_visualize_urban_quality.py
+#   -v Outputs/Detection/Res_640/MissionDistrictBlock_2011-02-01_3/
+#   -s 640
+#   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
+#   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
+#   -m mark_missing
+#
+# Data inputs:
+#   - CSV file including an index of each street segment (generated using
+#     03_create_segment_indices.py on the selected neighborhoods)
+#
+# Outputs:
+#   - PNG and HTML files including the static and interactive maps saved to
+#     the specified OUTPUT_PATH
 
 import branca.colormap as cm
 import folium

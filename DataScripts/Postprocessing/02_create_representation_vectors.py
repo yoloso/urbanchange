@@ -7,6 +7,7 @@
 #   -s 640
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
 #   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
+#   -m mark_missing
 #
 # Data inputs:
 #   - CSV file including one row per detected object instance (generated
@@ -26,7 +27,6 @@ from tqdm import tqdm
 from object_classes import CLASSES_TO_LABEL
 from utils import AppendLogger
 
-
 # Parameters
 # Length rate (meters): Utilized when normalizing the vectors for the segment
 # length. It specifies the rate to use for counting objects.
@@ -41,7 +41,7 @@ PANORAMA_COVERAGE = 5
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--segment_vectors_dir', required=True,
                     help='Input directory for object vectors produced by 01_detect_segments.py')
-parser.add_argument('-s', '--image_size', required=True, default=640,
+parser.add_argument('-s', '--image_size', required=True, default=640, type=int,
                     help='Image resolution')
 parser.add_argument('-d', '--segment_dictionary', required=True,
                     help='Path to segment dictionary for the location')
@@ -92,7 +92,14 @@ def adjust_length_with_missings(length, num_missing_images,
     # missing image refers to a single view of the street; that is, if a
     # panorama is missing, it will be double counted as we query it twice (one
     # time for each heading)
-    return length - missing_meters / 2
+    adj_length = length - missing_meters / 2
+
+    if adj_length <= 0:
+        print('[WARNING] Non-positive segment length resulting from segment'
+              'length missing image adjustment')
+        adj_length = 0.00001  # Temporary fix to avoid division by zero
+
+    return adj_length
 
 
 # Aggregation functions
@@ -232,7 +239,6 @@ AGGREGATIONS = {'count': aggregate_count,
                 'Bbox_weighted': aggregate_bbox_weighted,
                 'ConfxBbox_weighted': aggregate_confxbbox_weighted}
 
-
 if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
@@ -284,7 +290,7 @@ if __name__ == '__main__':
     for aggregation in AGGREGATIONS.keys():
         aggregation_files[aggregation] = AppendLogger(
             os.path.join(segment_vectors_dir, '{}_{}.txt'.format(
-                location_time, aggregation)))
+                aggregation, missing_image_normalization)))
 
     # Drop duplicate objects (this may be driven by the 01_detect_segments.py
     # process stopping and restarting)
@@ -296,10 +302,11 @@ if __name__ == '__main__':
 
     # Recognize past progress
     if os.path.exists(os.path.join(
-            segment_vectors_dir, '{}_ConfxBbox_weighted.txt'.format(location_time))):
+            segment_vectors_dir, '{}_ConfxBbox_weighted_{}.txt'.format(
+                location_time, missing_image_normalization))):
         with open(os.path.join(
-                segment_vectors_dir, '{}_ConfxBbox_weighted.txt'.format(location_time)),
-                'r') as file:
+                segment_vectors_dir, '{}_ConfxBbox_weighted_{}.txt'.format(
+                    location_time, missing_image_normalization)), 'r') as file:
             processed_segments = file.readlines()
         key_start = len(set(processed_segments)) - 1
     else:
@@ -363,10 +370,11 @@ if __name__ == '__main__':
           'to DataFrames.')
     for aggregation in AGGREGATIONS.keys():
         # Get temporary and CSV files for the aggregation
-        agg_temporary_file = os.path.join(segment_vectors_dir, '{}_{}.txt'.format(
-                location_time, aggregation))
+        agg_temporary_file = os.path.join(
+            segment_vectors_dir, '{}_{}.txt'.format(
+                aggregation, missing_image_normalization))
         agg_new_file = os.path.join(segment_vectors_dir, '{}_{}.csv'.format(
-                location_time, aggregation))
+                aggregation, missing_image_normalization))
 
         # Check number of processed segments
         with open(agg_temporary_file, 'r') as file:
@@ -396,4 +404,5 @@ if __name__ == '__main__':
             segment_representations.to_csv(agg_new_file, index=False)
 
         else:
-            raise Exception('[ERROR] Incomplete street segments representations temporary file.')
+            raise Exception('[ERROR] Incomplete street segments representations'
+                            ' temporary file.')
