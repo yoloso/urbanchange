@@ -18,13 +18,22 @@
 #     selected output path)
 
 import argparse
+import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
 
 from object_classes import CLASSES_TO_LABEL
-from utils import AppendLogger
 
+# Parameters
+WEIGHTS = {'facade': 0.1,
+           'graffiti': 0.2,
+           'weed': 0.1,
+           'garbage': 0.2,
+           'pothole': 0,
+           'tent': 0,
+           'window': 0.2,
+           'graffiti2': 0.1}
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -36,17 +45,29 @@ parser.add_argument('-a', '--aggregation_type', required=True,
 parser.add_argument('-m', '--missing_image', required=True,
                     help='Image normalization used to generate segment vectors')
 parser.add_argument('-o', '--output_dir',
-                    default=os.path.join('..', '..', 'Outputs', 'Urban_quality'),
+                    default=os.path.join('..', '..', 'Outputs', 'Urban_quality', 'Res_640'),
                     help='Output directory path')
 
-# Aggregation functions
-# TODO
 
-# Define aggregation types # TODO
+# Aggregation functions
+def object_sum(x):
+    row_sum = 0
+    for object_class in CLASSES_TO_LABEL.keys():
+        row_sum += x[object_class]
+    return row_sum
+
+
+def object_weighted_sum(x):
+    row_sum = 0
+    for object_class in CLASSES_TO_LABEL.keys():
+        row_sum += x[object_class] * WEIGHTS[object_class]
+    return row_sum
+
+
+# Define aggregation types
 AGGREGATIONS = {
-    'sum': None,
-    'weighted_sum': None,
-    'class': None
+    'sum': object_sum,
+    'weighted_sum': object_weighted_sum
 }
 
 if __name__ == '__main__':
@@ -79,8 +100,9 @@ if __name__ == '__main__':
     # Compute indices
     for aggregation in AGGREGATIONS:
         agg_fun = AGGREGATIONS[aggregation]
-        representation_vectors = representation_vectors.apply(agg_fun, axis=1)
+        representation_vectors[aggregation] = \
+            representation_vectors.apply(agg_fun, axis=1)
 
     # Export
     representation_vectors.to_csv(
-        os.path.join(output_dir, location_time), index=False)
+        os.path.join(output_dir, location_time, 'indices.csv'), index=False)

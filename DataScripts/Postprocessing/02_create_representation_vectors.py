@@ -81,7 +81,7 @@ def adjust_length_with_missings(length, num_missing_images,
     a representation vector for a segment that includes missing images
     :return:
     """
-    if missing_img_normalization != 'length_adjustment':
+    if missing_img_normalization != 'length_adjustment' and num_missing_images > 0:
         raise Exception('[ERROR] Missing image normalization should be set'
                         'to length_adjustment if computing vector representations'
                         'for segments with missing images')
@@ -282,7 +282,9 @@ if __name__ == '__main__':
     images_location_time = images_dir.split(os.path.sep)[-1]
 
     if not (location == segment_dict_location and location_time == images_location_time):
-        raise Exception('[ERROR] Input files point to different location-time selections.')
+        raise Exception('[ERROR] Input files point to different location-time '
+                        'selections: {}, {}, {}, {}'.format(
+            location, segment_dict_location, location_time, images_location_time))
     print('[INFO] Creating representation vectors for {}'.format(location_time))
 
     # Set up aggregation files
@@ -374,7 +376,7 @@ if __name__ == '__main__':
             segment_vectors_dir, '{}_{}.txt'.format(
                 aggregation, missing_image_normalization))
         agg_new_file = os.path.join(segment_vectors_dir, '{}_{}.csv'.format(
-                aggregation, missing_image_normalization))
+            aggregation, missing_image_normalization))
 
         # Check number of processed segments
         with open(agg_temporary_file, 'r') as file:

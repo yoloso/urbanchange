@@ -1,8 +1,8 @@
-# 04_visualize_urban_quality.py
+# 05_visualize_urban_quality.py
 # Visualizes the indices of each street segment in a given location.
 #
 # Usage: Run the following command in terminal (modified to your neighborhood of choice)
-#   python 04_visualize_urban_quality.py
+#   python 05_visualize_urban_quality.py
 #   -v Outputs/Detection/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -s 640
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
