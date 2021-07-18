@@ -18,7 +18,6 @@
 #     selected output path)
 
 import argparse
-import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -70,6 +69,9 @@ AGGREGATIONS = {
     'weighted_sum': object_weighted_sum
 }
 
+# Report progress
+tqdm.pandas()
+
 if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
@@ -101,7 +103,7 @@ if __name__ == '__main__':
     for aggregation in AGGREGATIONS:
         agg_fun = AGGREGATIONS[aggregation]
         representation_vectors[aggregation] = \
-            representation_vectors.apply(agg_fun, axis=1)
+            representation_vectors.progress_apply(agg_fun, axis=1)
 
     # Export
     representation_vectors.to_csv(
