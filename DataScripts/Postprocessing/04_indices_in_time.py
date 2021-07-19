@@ -35,13 +35,23 @@ parser.add_argument('-l', '--location', required=True,
 parser.add_argument('--t0', required=True, help='Start time period')
 parser.add_argument('--t1', required=True, help='End time period')
 
+
 # Index change functions
+def absolute_change(v0, v1):
+    return v1 - v0
 
 
-# Define change functions # TODO
+def relative_change(v0, v1):
+    if abs(v0) < 1e-10:
+        return None
+    else:
+        return (v1/v0 - 1) * 100
+
+
+# Define change functions
 CHANGES = {
-    'absolute_change': None,
-    'relative_change': None
+    'absoluteChange': absolute_change,
+    'relativeChange': relative_change
 }
 
 
@@ -69,12 +79,14 @@ if __name__ == '__main__':
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
+    # Get columns in common (except segment_id)
+    common_cols = set(indices['0'].columns).intersection(set(indices['1'].columns))
+    common_cols = [col for col in common_cols if col != 'segment_id']
+
     # Merge DataFrames
     for i in [0, 1]:
-        index_columns = [col for col in list(indices[str(i)].columns)
-                         if col != 'segment_id']
         column_update = {}
-        for col_name in index_columns:
+        for col_name in common_cols:
             column_update[col_name] = '{}{}'.format(col_name, i)
         indices[str(i)].rename(columns=column_update, inplace=True)
     merged = pd.merge(indices['0'], indices['1'], on='segment_id')
@@ -82,16 +94,19 @@ if __name__ == '__main__':
     # Handle missing values
     merged.dropna(inplace=True, axis=0, how='any')
 
-    # TODO get same columns
-
     # Compute change indices
     for change in CHANGES:
         change_fun = CHANGES[change]
 
-        for object_class in CLASSES_TO_LABEL.keys(): # TODO
-            merged['{}_{}'.format(None, None)] = \
-                merged[[]].apply(change_fun, axis=1)
+        for col_name in common_cols:
+            merged['{}_{}'.format(col_name, change)] = merged.apply(
+                lambda x: change_fun(x['{}0'.format(col_name)],
+                                     x['{}1'.format(col_name)]), axis=1)
+
+    # Keep only change columns
+    merged.set_index('segment_id', inplace=True)
+    merged = merged[[col for col in merged.columns if 'Change' in col]]
 
     # Export
     merged.to_csv(
-        os.path.join(output_path, 'indices.csv'), index=False)
+        os.path.join(output_path, 'indices.csv'), index=True)

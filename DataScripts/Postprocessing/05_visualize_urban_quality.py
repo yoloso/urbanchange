@@ -17,6 +17,7 @@
 #   - PNG and HTML files including the static and interactive maps saved to
 #     the specified OUTPUT_PATH
 
+import argparse
 import branca.colormap as cm
 import folium
 import geopandas as gpd
@@ -32,80 +33,81 @@ from utils import generate_location_graph
 
 
 # Parameters
-SELECTED_LOCATION = 'GoldenGateHeights'
-INPUT_PATH = os.path.join(
-    '../../..', '..', 'Outputs', 'SFStreetView', 'Urban_quality',
-    'Segments_{}.csv'.format(SELECTED_LOCATION))
-OUTPUT_PATH = os.path.join(
-    '../../..', '..', 'Outputs', 'Urban_quality')
 CMAP = cm.LinearColormap(
     colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
 
-# Define the neighborhood and get graph
-neighborhood = LOCATIONS[SELECTED_LOCATION]
-G = generate_location_graph(neighborhood=neighborhood, simplify=True)
-nodes, edges = ox.graph_to_gdfs(G)
+# Set up command line arguments
+parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--indices_dir', required=True,
+                    help='Input directory for urban quality indices produced '
+                         'by 03_create_segment_indices.py and '
+                         '04_indices_in_time.py',
+                    default=os.path.join('..', '..', 'Outputs', 'Urban_quality', 'Res_640'))
+parser.add_argument('-l', '--location-time', required=True,
+                    help='Location/neighborhood and time period')
+parser.add_argument('-i', '--index', required=True,
+                    help='Index to plot (must match column name in indices.csv)')
 
-# Create toy data (this will later be replaced by the outputs of the CNN)
-# TODO Replace --------------------------------
-np.random.seed(42)
-SEGMENT_DICTIONARY = os.path.join(
-    '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
-    'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
-try:
-    print('[INFO] Loading segment dictionary for {}'.format(SELECTED_LOCATION))
-    with open(SEGMENT_DICTIONARY, 'r') as segment_file:
-        segment_dictionary = json.load(segment_file)
-except FileNotFoundError:
-    raise Exception('[ERROR] Segment dictionary not found.')
 
-toy_data = pd.DataFrame({'node0': [], 'node1': [], 'value': []})
-for key, segment in segment_dictionary.items():
-    # Hash segment ID
-    segment_id = json.loads(segment['segment_id'])
-    node0, node1 = segment_id[0], segment_id[1]
-    random_value = np.random.rand(1)[0]
+if __name__ == '__main__':
+    # Capture command line arguments
+    args = vars(parser.parse_args())
+    indices_dir = args['indices_dir']
+    location_time = args['location-time']
+    index = args['index']
 
-    # Append twice to DataFrame with random value
-    # (one time for each direction of the edge)
-    toy_data = toy_data.append(
-        {'node0': node0, 'node1': node1, 'value': random_value},
-        ignore_index=True)
-    toy_data = toy_data.append(
-        {'node0': node1, 'node1': node0, 'value': random_value},
-        ignore_index=True)
+    # Grab location and location attributes for plotting
+    location = location_time.split('_')[0]
+    neighborhood = LOCATIONS[location]
 
-segment_values = toy_data
-# TODO End Replace --------------------------------
+    # Generate graph and prepare edge data for merge
+    G = generate_location_graph(neighborhood=neighborhood, simplify=True)
+    nodes, edges = ox.graph_to_gdfs(G)
 
-# Prepare edge data for merge
-edges = edges[['osmid', 'name', 'geometry']]
-edges.reset_index(inplace=True)
+    edges = edges[['osmid', 'name', 'geometry']]
+    edges.reset_index(inplace=True)
 
-# Merge segment data and graph data
-edges = pd.merge(edges, segment_values, how='left', left_on=['u', 'v'],
-                 right_on=['node0', 'node1'], validate='many_to_one')
+    # Load indices
+    try:
+        print('[INFO] Loading indices for {}'.format(location_time))
+        with open(os.path.join(
+                indices_dir, location_time, 'indices.csv'), 'r') as file:
+            indices = pd.read_csv(file)
+    except FileNotFoundError:
+        raise Exception('[ERROR] Indices for location-time not found.')
 
-# Check for missing values
-# TODO is this needed?
+    # Get nodes and index column from indices
+    indices['node0'] = indices['segment_id'].str.split('-', expand=True)[0]
+    indices['node1'] = indices['segment_id'].str.split('-', expand=True)[1]
+    indices['index'] = indices[index]
+    indices = indices[['node0', 'node1', 'index']]
+    indices = indices.astype({"node0": int, "node1": int})
 
-print('[INFO] Generating maps.')
-# Interactive map
-style_fun = lambda x: {'color': CMAP(x['properties']['value']), 'weight': '1'}
+    # Merge segment data and graph data
+    edges = pd.merge(edges, indices, how='left', left_on=['u', 'v'],
+                     right_on=['node0', 'node1'], validate='many_to_one')
 
-interactive_map = folium.Map(
-    neighborhood['start_location'], zoom_start=13, tiles='CartoDb dark_matter')
-folium.GeoJson(edges, style_function=style_fun).add_to(interactive_map)
-interactive_map.save(os.path.join(
-    OUTPUT_PATH, 'Segments_Map_{}.html'.format(SELECTED_LOCATION)))
+    # Drop missing values
+    edges.dropna(subset=['index'], inplace=True)
 
-# Static map
-gdf = gpd.GeoDataFrame(edges, geometry='geometry')
-gdf['color'] = gdf.apply(lambda row: CMAP(row['value']), axis=1)
+    print('[INFO] Generating maps.')
+    output_path = os.path.join(indices_dir, location_time)
 
-fig, ax = plt.subplots(figsize=(10, 10))
-gdf.plot(ax=ax, color=gdf['color'])
-plt.axis('off')
-plt.title('Mission District')
-plt.savefig(os.path.join(
-    OUTPUT_PATH, 'Segments_StaticMap_{}.png'.format(SELECTED_LOCATION)))
+    # Interactive map
+    style_fun = lambda x: {'color': CMAP(x['properties']['index']), 'weight': '1'}
+
+    interactive_map = folium.Map(
+        neighborhood['start_location'], zoom_start=13, tiles='CartoDb dark_matter')
+    folium.GeoJson(edges, style_function=style_fun).add_to(interactive_map)
+    interactive_map.save(os.path.join(output_path, 'IntMap_{}.html'.format(index)))
+
+    # Static map
+    gdf = gpd.GeoDataFrame(edges, geometry='geometry')
+    gdf['color'] = gdf.apply(lambda row: CMAP(row['index']), axis=1)
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    gdf.plot(ax=ax, color=gdf['color'])
+    plt.axis('off')
+    plt.title(location)
+    plt.savefig(os.path.join(
+        output_path, 'StaticMap_{}.png'.format(index)))

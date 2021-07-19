@@ -42,7 +42,7 @@ from locations import LOCATIONS
 
 # Parameters
 YEARS = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021]
-SELECTED_NEIGHBORHOOD = 'GoldenGateHeights'
+SELECTED_NEIGHBORHOOD = 'MissionTenderloinAshburyCastroChinatown'
 LOCATION_TYPE = ['random', 'segmentDictionary'][1]
 NUM_LOCATIONS = 5000
 INPUT_PATH = os.path.join(
