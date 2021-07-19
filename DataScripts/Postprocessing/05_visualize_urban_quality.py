@@ -79,7 +79,12 @@ if __name__ == '__main__':
     # Get nodes and index column from indices
     indices['node0'] = indices['segment_id'].str.split('-', expand=True)[0]
     indices['node1'] = indices['segment_id'].str.split('-', expand=True)[1]
-    indices['index'] = indices[index]
+
+    try:
+        indices['index'] = indices[index]
+    except KeyError:
+        raise Exception('[ERROR] Index not found in Indices DataFrame.')
+
     indices = indices[['node0', 'node1', 'index']]
     indices = indices.astype({"node0": int, "node1": int})
 

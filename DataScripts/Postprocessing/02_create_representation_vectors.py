@@ -35,7 +35,7 @@ from utils import AppendLogger
 # only for readability and to minimize floating point imprecision.
 LENGTH_RATE = 100
 MISSING_IMAGE_NORMALIZATION = ['mark_missing', 'length_adjustment']
-PANORAMA_COVERAGE = 5
+PANORAMA_COVERAGE = 5 # (average meters covered by each panorama view)
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()

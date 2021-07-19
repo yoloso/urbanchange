@@ -11,9 +11,9 @@
 # images for a selected time period. If you wish to download images for a
 # particular time period, modify the PERIOD_SELECTION dictionary. The
 # 'optimal_date' key should be a date object (year, month, day) representing the
-# optimal timestamp the images should have. The 'bandwidth' key represents the
-# appropriate threshold for the images' timestamp; any locations without
-# panoramas for these years will have missing images.
+# optimal timestamp the images should have. The 'min' and 'max' keys represent the
+# appropriate time period for the images' timestamp; any locations without
+# panoramas for these dates will have missing images.
 #
 # Inputs:
 #       - LOCATIONS dictionary including a dictionary for the selected location.
@@ -31,18 +31,20 @@ import streetview
 from tqdm import tqdm
 
 import CONFIG
-from utils import get_SV_image, get_SV_metadata, AppendLogger
+from utils import get_SV_image, get_SV_metadata, AppendLogger, Logger
+
 
 # Parameters
-SELECTED_LOCATION = 'MissionDistrictBlock'
+SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
 SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
 
 TIME_PERIOD = ['google_default', 'selected'][1]
 PERIOD_SELECTION = {
-    'optimal_date': date(2021, 2, 1),
-    'bandwidth': [2020, 2021]
+    'optimal_date': date(2011, 2, 1),
+    'min': date(2011, 1, 1),
+    'max': date(2011, 12, 31)
 }
 
 if TIME_PERIOD == 'google_default':
@@ -52,9 +54,8 @@ if TIME_PERIOD == 'google_default':
 else:
     OUTPUT_PATH = os.path.join(
         '..', '..', 'Data', 'ProcessedData', 'SFStreetView', 'Res_640',
-        '{}_{}_{}'.format(
-            SELECTED_LOCATION, str(PERIOD_SELECTION['optimal_date']),
-            len(PERIOD_SELECTION['bandwidth'])))
+        '{}_{}'.format(
+            SELECTED_LOCATION, str(PERIOD_SELECTION['optimal_date'])))
 
 IMG_PARAMS = {
     'size': '640x640',
@@ -67,7 +68,7 @@ def return_optimal_panoid(lat, lng):
     """
     Returns the panorama ID for a given location with the timestamp closest
     to the optimum date as specified in the PERIOD_SELECTION dict, if it falls
-    within the specified bandwidth.
+    within the specified minimum and maximum dates.
     :param lat: (float)
     :param lng: (float)
     :return: (dict) including the panorama ID and its timestamp, if available.
@@ -78,12 +79,13 @@ def return_optimal_panoid(lat, lng):
 
     # Check availability for selected years
     for panoid in panoid_list:
-        if 'year' in panoid.keys() and panoid['year'] in PERIOD_SELECTION['bandwidth']:
+        if 'year' in panoid.keys():
             pano_date = date(panoid['year'], panoid['month'], 1)
-            if abs(pano_date - PERIOD_SELECTION['optimal_date']) < current_optimum:
-                current_optimum = abs(pano_date - PERIOD_SELECTION['optimal_date'])
-                optimal_panoid['pano_id'] = panoid['panoid']
-                optimal_panoid['date'] = pano_date
+            if PERIOD_SELECTION['max'] >= pano_date >= PERIOD_SELECTION['min']:
+                if abs(pano_date - PERIOD_SELECTION['optimal_date']) < current_optimum:
+                    current_optimum = abs(pano_date - PERIOD_SELECTION['optimal_date'])
+                    optimal_panoid['pano_id'] = panoid['panoid']
+                    optimal_panoid['date'] = pano_date
 
     return optimal_panoid
 
@@ -101,6 +103,14 @@ if not os.path.exists(OUTPUT_PATH):
     print('[INFO] Creating output path: {}'.format(OUTPUT_PATH))
     os.makedirs(OUTPUT_PATH)
 logger = AppendLogger(os.path.join(OUTPUT_PATH, 'images.txt'))
+
+# Record image dates
+if TIME_PERIOD == 'selected':
+    date_logger = Logger(os.path.join(OUTPUT_PATH, 'image_dates.txt'))
+    date_logger.write(
+        'Optimal date: {}\n Minimum date: {} \n Maximum date: {}'.format(
+            PERIOD_SELECTION['optimal_date'], PERIOD_SELECTION['min'],
+            PERIOD_SELECTION['max']))
 
 # Identify remaining street segments to collect
 if not os.path.exists(os.path.join(OUTPUT_PATH, 'images.txt')):
