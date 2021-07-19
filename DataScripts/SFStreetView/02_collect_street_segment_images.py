@@ -220,8 +220,9 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
             # Log image metadata
             logger.write(image_log)
 
-        # Update headings
-        previous_headings = heading1, heading2
+        # Update headings if not None
+        if heading1 is not None and heading2 is not None:
+            previous_headings = heading1, heading2
 
 print('[INFO] Image collection complete.'
       ' Loaded {} images for {} street segments. '
