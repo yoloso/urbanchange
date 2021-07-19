@@ -42,9 +42,9 @@ SEGMENT_DICTIONARY = os.path.join(
 
 TIME_PERIOD = ['google_default', 'selected'][1]
 PERIOD_SELECTION = {
-    'optimal_date': date(2011, 2, 1),
-    'min': date(2011, 1, 1),
-    'max': date(2011, 12, 31)
+    'optimal_date': date(2021, 2, 1),
+    'min': date(2020, 6, 1),
+    'max': date(2021, 5, 31)
 }
 
 if TIME_PERIOD == 'google_default':
