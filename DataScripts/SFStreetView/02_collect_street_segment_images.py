@@ -42,9 +42,9 @@ SEGMENT_DICTIONARY = os.path.join(
 
 TIME_PERIOD = ['google_default', 'selected'][1]
 PERIOD_SELECTION = {
-    'optimal_date': date(2021, 2, 1),
-    'min': date(2020, 6, 1),
-    'max': date(2021, 5, 31)
+    'optimal_date': date(2011, 2, 1),
+    'min': date(2011, 1, 1),
+    'max': date(2011, 12, 31)
 }
 
 if TIME_PERIOD == 'google_default':
@@ -59,7 +59,7 @@ else:
 
 IMG_PARAMS = {
     'size': '640x640',
-    'key': CONFIG.SV_api_key,
+    'key': CONFIG.SV_api_key
 }
 
 
@@ -128,6 +128,7 @@ print('[INFO] Saving images for {} street segments.'.format(
 main_counter = 0
 image_unavailable_counter = 0
 heading_unavailable_counter = 0
+coordinate_unavailable_counter = 0
 
 for key in tqdm(range(start_key, len(segment_dictionary))):
     segment = segment_dictionary[str(key)]
@@ -140,6 +141,10 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
     if len(segment['coordinates']) == 0:
         print('[WARNING] No coordinates for segment {}: {}'.format(
             key, segment['name']))
+        coordinate_unavailable_counter += 1
+        image_log = '{} UnavailableCoordinates NA NA'.format(segment_id)
+        logger.write(image_log)
+        continue
 
     # Get images for each coordinate and heading
     location_counter = 0
@@ -227,6 +232,7 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
 print('[INFO] Image collection complete.'
       ' Loaded {} images for {} street segments. '
       ' Encountered {} unavailable images.'
+      ' Encountered {} segments with unavailable coordinates.'
       ' Encountered {} segments with unavailable first node heading'.format(
       main_counter, len(segment_dictionary), image_unavailable_counter,
-      heading_unavailable_counter))
+      coordinate_unavailable_counter, heading_unavailable_counter))
