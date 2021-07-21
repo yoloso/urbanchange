@@ -149,11 +149,7 @@ if __name__ == '__main__':
 
         # Add to segment vector DataFrame
         # Loop over each image in the segment
-        if len(results) == 0:
-            logger.write('{} {} {} {} {} {}'.format(
-                segment_id, None, None, None, None, None))
-            continue
-
+        segment_result_counter = 0
         for i in range(len(results)):
             # Get objects and image ID
             img_objects = get_objects(
@@ -169,6 +165,11 @@ if __name__ == '__main__':
                     round(img_objects['bbox_size'][j], 2), # Bounding box size
                     img_objects['class'][j] # Class
                 ))
+                segment_result_counter += 1
+
+        if segment_result_counter == 0:
+            logger.write('{} {} {} {} {} {}'.format(
+                segment_id, None, None, None, None, None))
 
     # Check number of processed object vectors and save to DataFrame
     with open(logger_path, 'r') as file:
