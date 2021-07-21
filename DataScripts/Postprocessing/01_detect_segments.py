@@ -25,14 +25,15 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from utils import AppendLogger
+from utils import AppendLogger #NOTE: UTILS MODULE CLASHES WITH TORCH.UHUB UTILS MODULE
 
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-w', '--weights', required=True,
                     help='Path to model weights')
-parser.add_argument('-s', '--size', required=True, default=640, help='Image size')
+parser.add_argument('-s', '--size', required=True, default=640,
+                    help='Image size', type=int)
 parser.add_argument('-d', '--segment_dictionary', required=True,
                     help='Path to segment JSON dictionary')
 parser.add_argument('-o', '--output_path', required=True,
@@ -55,7 +56,7 @@ def get_objects(img_result, model_names_list, image_path, seg_id):
     """
     object_dict = {}
     num_objects = img_result.shape[0]
-    img_result = img_result.numpy()
+    img_result = img_result.numpy() # TODO transfer to CPU if GPU
 
     # Add image and segment ID
     object_dict['segment_id'] = [seg_id] * num_objects
@@ -148,6 +149,11 @@ if __name__ == '__main__':
 
         # Add to segment vector DataFrame
         # Loop over each image in the segment
+        if len(results) == 0:
+            logger.write('{} {} {} {} {} {}'.format(
+                segment_id, None, None, None, None, None))
+            continue
+
         for i in range(len(results)):
             # Get objects and image ID
             img_objects = get_objects(
