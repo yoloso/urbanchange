@@ -32,10 +32,6 @@ from locations import LOCATIONS
 from utils import generate_location_graph
 
 
-# Parameters
-CMAP = cm.LinearColormap(
-    colors=['lightcoral', 'royalblue'], vmin=0, vmax=1)
-
 # Set up command line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--indices_dir', required=True,
@@ -107,6 +103,11 @@ if __name__ == '__main__':
     if not os.path.exists(output_path):
         print('[INFO] Generating map output path.')
         os.makedirs(output_path)
+
+    # Set up color map
+    CMAP = cm.LinearColormap(
+        colors=['lightcoral', 'royalblue'], vmin=edges['index'].min(),
+        vmax=edges['index'].max())
 
     # Interactive map
     style_fun = lambda x: {'color': CMAP(x['properties']['index']), 'weight': '1'}
