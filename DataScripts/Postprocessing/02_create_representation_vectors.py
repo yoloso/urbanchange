@@ -308,12 +308,13 @@ if __name__ == '__main__':
 
     # Recognize past progress
     if os.path.exists(os.path.join(
-            segment_vectors_dir, '{}_ConfxBbox_weighted_{}.txt'.format(
-                location_time, missing_image_normalization))):
+            segment_vectors_dir, 'ConfxBbox_weighted_{}.txt'.format(
+                missing_image_normalization))):
         with open(os.path.join(
-                segment_vectors_dir, '{}_ConfxBbox_weighted_{}.txt'.format(
-                    location_time, missing_image_normalization)), 'r') as file:
+                segment_vectors_dir, 'ConfxBbox_weighted_{}.txt'.format(
+                    missing_image_normalization)), 'r') as file:
             processed_segments = file.readlines()
+        processed_segments = [list(json.loads(segment).keys())[0] for segment in processed_segments]
         key_start = len(set(processed_segments)) - 1
     else:
         key_start = 0
@@ -386,7 +387,8 @@ if __name__ == '__main__':
         # Check number of processed segments
         with open(agg_temporary_file, 'r') as file:
             vector_representations = file.readlines()
-        number_of_processed_segments = len(vector_representations)
+        processed_segments = [list(json.loads(segment).keys())[0] for segment in vector_representations]
+        number_of_processed_segments = len(set(processed_segments))
 
         # Export if all segments have been processed
         if number_of_processed_segments == len(segment_dictionary):
