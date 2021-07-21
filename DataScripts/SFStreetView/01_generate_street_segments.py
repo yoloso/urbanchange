@@ -35,7 +35,7 @@ from utils import generate_location_graph, AppendLogger
 R = 6378.1  # Radius of the Earth
 DIST = 0.005  # Distance between images (km)
 OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
-SELECTED_LOCATION = 'MissionDistrict'
+SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
 INTERMEDIATE_FILE_PATH = 'intermediate_segment_dictionary_{}.txt'.format(SELECTED_LOCATION)
 VISUALIZE = False

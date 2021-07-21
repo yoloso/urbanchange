@@ -33,7 +33,7 @@ from tqdm import tqdm
 import CONFIG
 from utils import get_SV_image, get_SV_metadata, AppendLogger, Logger
 
-
+# TODO ADD NEWLINE WHEN SCRIPT IS INTERRUPTED
 # Parameters
 SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
 SEGMENT_DICTIONARY = os.path.join(

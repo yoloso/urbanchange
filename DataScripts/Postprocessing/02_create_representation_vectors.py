@@ -35,7 +35,7 @@ from utils import AppendLogger
 # only for readability and to minimize floating point imprecision.
 LENGTH_RATE = 100
 MISSING_IMAGE_NORMALIZATION = ['mark_missing', 'length_adjustment']
-PANORAMA_COVERAGE = 5 # (average meters covered by each panorama view)
+PANORAMA_COVERAGE = 5  # (average meters covered by each panorama view)
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -61,11 +61,11 @@ def generate_full_agg_dictionary(agg_series):
     :return: (dict)
     """
     agg_dict = {}
-    for object_class in CLASSES_TO_LABEL.keys():
-        if object_class in agg_series:
-            agg_dict[object_class] = agg_series.loc[object_class]
+    for obj_class in CLASSES_TO_LABEL.keys():
+        if obj_class in agg_series:
+            agg_dict[obj_class] = agg_series.loc[obj_class]
         else:
-            agg_dict[object_class] = 0
+            agg_dict[obj_class] = 0
     return agg_dict
 
 
@@ -120,7 +120,7 @@ def aggregate_count(df, img_size, length, num_missing_images,
     a representation vector for a segment that includes missing images
     :return: (dict) of counts for each class
     """
-    counts = df[['img_id', 'class']].groupby(['class']).count().squeeze()
+    counts = df[['img_id', 'class']].groupby(['class']).count()
 
     # Normalize by street length
     adj_length = adjust_length_with_missings(
@@ -151,7 +151,7 @@ def aggregate_confidence_weighted(df, img_size, length, num_missing_images,
     :return: (dict) of confidence-weighted counts for each class
     """
     # Weight counts
-    weighted_counts = df[['confidence', 'class']].groupby(['class']).sum().squeeze()
+    weighted_counts = df[['confidence', 'class']].groupby(['class']).sum()
 
     # Normalize by street length
     adj_length = adjust_length_with_missings(
@@ -184,7 +184,7 @@ def aggregate_bbox_weighted(df, img_size, length, num_missing_images,
     df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
 
     weighted_counts = \
-        df[['normalized_bbox', 'class']].groupby(['class']).sum().squeeze()
+        df[['normalized_bbox', 'class']].groupby(['class']).sum()
 
     # Normalize by street length
     adj_length = adjust_length_with_missings(
@@ -221,7 +221,7 @@ def aggregate_confxbbox_weighted(df, img_size, length, num_missing_images,
     df['conf_normalized_bbox'] = df['normalized_bbox'] * df['confidence']
 
     weighted_counts = \
-        df[['conf_normalized_bbox', 'class']].groupby(['class']).sum().squeeze()
+        df[['conf_normalized_bbox', 'class']].groupby(['class']).sum()
 
     # Normalize by street length
     adj_length = adjust_length_with_missings(
@@ -252,7 +252,11 @@ if __name__ == '__main__':
     # Load object vectors
     try:
         with open(os.path.join(segment_vectors_dir, 'detections.csv'), 'r') as file:
-            object_vectors = pd.read_csv(file)
+            object_vectors = pd.read_csv(
+                file, dtype={'segment_id': object, 'img_id': object,
+                             'object_id': object, 'confidence': float,
+                             'bbox_size': float, 'class': object},
+                na_values=['None'])
     except FileNotFoundError:
         raise Exception('[ERROR] Segment vectors file not found.')
 
@@ -324,7 +328,7 @@ if __name__ == '__main__':
         segment_id = '{}-{}'.format(segment_id[0], segment_id[1])
 
         # Get segment length to normalize vectors
-        segment_length = segment['length']
+        segment_length = float(segment['length'])
 
         segment_df = \
             object_vectors[object_vectors['segment_id'] == segment_id].copy()

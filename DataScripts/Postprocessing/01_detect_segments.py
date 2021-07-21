@@ -25,8 +25,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from utils import AppendLogger #NOTE: UTILS MODULE CLASHES WITH TORCH.UHUB UTILS MODULE
-
+from utils import AppendLogger  # TODO: UTILS MODULE CLASHES WITH TORCH.HUB UTILS MODULE
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -56,7 +55,7 @@ def get_objects(img_result, model_names_list, image_path, seg_id):
     """
     object_dict = {}
     num_objects = img_result.shape[0]
-    img_result = img_result.numpy() # TODO transfer to CPU if GPU
+    img_result = img_result.numpy()  # TODO transfer to CPU if GPU
 
     # Add image and segment ID
     object_dict['segment_id'] = [seg_id] * num_objects
@@ -158,12 +157,12 @@ if __name__ == '__main__':
             # Loop over each object instance in the image and write to logger
             for j in range(len(img_objects['segment_id'])):
                 logger.write('{} {} {} {} {} {}'.format(
-                    img_objects['segment_id'][j], # Segment ID
-                    img_objects['img_id'][j], # Image ID
-                    j, # Object instance ID
-                    round(img_objects['confidence'][j], 4), # Confidence
-                    round(img_objects['bbox_size'][j], 2), # Bounding box size
-                    img_objects['class'][j] # Class
+                    img_objects['segment_id'][j],  # Segment ID
+                    img_objects['img_id'][j],  # Image ID
+                    j,  # Object instance ID
+                    round(img_objects['confidence'][j], 4),  # Confidence
+                    round(img_objects['bbox_size'][j], 2),  # Bounding box size
+                    img_objects['class'][j]  # Class
                 ))
                 segment_result_counter += 1
 
@@ -184,7 +183,7 @@ if __name__ == '__main__':
         object_vectors = pd.DataFrame(df_columns)
 
         # Loop over the object instances
-        for object_instance in processed_object_vectors:
+        for object_instance in tqdm(processed_object_vectors):
             segment_id, img_id, object_id, confidence, bbox_size, class_id = \
                 object_instance.rstrip().split(' ')
             object_instance_dict = {'segment_id': segment_id,
