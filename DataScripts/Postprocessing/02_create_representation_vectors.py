@@ -332,7 +332,8 @@ if __name__ == '__main__':
         # Get record of images for the segment to compute missing images.
         # Note: Missing images are recorded as {segment_id} {NotSaved} {None} {None}
         # in script 02_collect_street_segment_images.py. We can skip the case
-        # of {segment_id} {UnavailableFirstHeading} {None} {None} as it will
+        # of {segment_id} {UnavailableFirstHeading} {None} {None} and the case
+        # of {segment_id} {UnavailableCoordinates} {None} {None} as they will
         # be handled automatically in the 'segments with zero images' case below.
         segment_log = image_log[image_log['segment_id'] == segment_id].copy()
         segment_missing_images = \

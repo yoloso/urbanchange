@@ -137,7 +137,8 @@ if __name__ == '__main__':
 
         # Skip the segment if it has no associated images (identify missing
         # by adding a row of Nones). A segment will usually have no associated
-        # images if it had an unavailable heading for it's first node.
+        # images if it had an unavailable heading for it's first node or if
+        # it had no associated coordinates.
         if len(image_paths) == 0:
             logger.write('{} {} {} {} {} {}'.format(
                 segment_id, None, None, None, None, None))
