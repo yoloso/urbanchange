@@ -62,10 +62,7 @@ def generate_full_agg_dictionary(agg_series):
     """
     agg_dict = {}
     for obj_class in CLASSES_TO_LABEL.keys():
-        if obj_class in agg_series:
-            agg_dict[obj_class] = agg_series.loc[obj_class]
-        else:
-            agg_dict[obj_class] = 0
+        agg_dict[obj_class] = agg_series.get(key=obj_class, default=0)
     return agg_dict
 
 
@@ -128,7 +125,7 @@ def aggregate_count(df, img_size, length, num_missing_images,
     counts = counts / adj_length * LENGTH_RATE
 
     # Generate complete dictionary
-    counts = generate_full_agg_dictionary(counts)
+    counts = generate_full_agg_dictionary(counts['img_id'])
     return counts
 
 
@@ -159,7 +156,7 @@ def aggregate_confidence_weighted(df, img_size, length, num_missing_images,
     weighted_counts = weighted_counts / adj_length * LENGTH_RATE
 
     # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    weighted_counts = generate_full_agg_dictionary(weighted_counts['confidence'])
     return weighted_counts
 
 
@@ -192,7 +189,7 @@ def aggregate_bbox_weighted(df, img_size, length, num_missing_images,
     weighted_counts = weighted_counts / adj_length * LENGTH_RATE
 
     # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    weighted_counts = generate_full_agg_dictionary(weighted_counts['normalized_bbox'])
     return weighted_counts
 
 
@@ -229,7 +226,7 @@ def aggregate_confxbbox_weighted(df, img_size, length, num_missing_images,
     weighted_counts = weighted_counts / adj_length * LENGTH_RATE
 
     # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts)
+    weighted_counts = generate_full_agg_dictionary(weighted_counts['conf_normalized_bbox'])
     return weighted_counts
 
 

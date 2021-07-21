@@ -107,4 +107,7 @@ if __name__ == '__main__':
 
     # Export
     representation_vectors.to_csv(
-        os.path.join(output_dir, location_time, 'indices.csv'), index=False)
+        os.path.join(output_dir, location_time,
+                     'indices_{}_{}.csv'.format(
+                         aggregation_type, missing_image_normalization)),
+        index=False)

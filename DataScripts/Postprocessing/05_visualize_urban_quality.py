@@ -43,8 +43,12 @@ parser.add_argument('-d', '--indices_dir', required=True,
                          'by 03_create_segment_indices.py and '
                          '04_indices_in_time.py',
                     default=os.path.join('..', '..', 'Outputs', 'Urban_quality', 'Res_640'))
-parser.add_argument('-l', '--location-time', required=True,
+parser.add_argument('-l', '--location_time', required=True,
                     help='Location/neighborhood and time period')
+parser.add_argument('-a', '--aggregation_type', required=True,
+                    help='Aggregation type used to generate segment vectors')
+parser.add_argument('-m', '--missing_image', required=True,
+                    help='Image normalization used to generate segment vectors')
 parser.add_argument('-i', '--index', required=True,
                     help='Index to plot (must match column name in indices.csv)')
 
@@ -53,7 +57,9 @@ if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
     indices_dir = args['indices_dir']
-    location_time = args['location-time']
+    location_time = args['location_time']
+    aggregation_type = args['aggregation_type']
+    missing_image_normalization = args['missing_image']
     index = args['index']
 
     # Grab location and location attributes for plotting
@@ -71,7 +77,8 @@ if __name__ == '__main__':
     try:
         print('[INFO] Loading indices for {}'.format(location_time))
         with open(os.path.join(
-                indices_dir, location_time, 'indices.csv'), 'r') as file:
+                indices_dir, location_time, 'indices_{}_{}.csv'.format(
+                    aggregation_type, missing_image_normalization)), 'r') as file:
             indices = pd.read_csv(file)
     except FileNotFoundError:
         raise Exception('[ERROR] Indices for location-time not found.')
@@ -86,7 +93,7 @@ if __name__ == '__main__':
         raise Exception('[ERROR] Index not found in Indices DataFrame.')
 
     indices = indices[['node0', 'node1', 'index']]
-    indices = indices.astype({"node0": int, "node1": int})
+    indices = indices.astype({"node0": np.int64, "node1": np.int64})
 
     # Merge segment data and graph data
     edges = pd.merge(edges, indices, how='left', left_on=['u', 'v'],
@@ -96,7 +103,10 @@ if __name__ == '__main__':
     edges.dropna(subset=['index'], inplace=True)
 
     print('[INFO] Generating maps.')
-    output_path = os.path.join(indices_dir, location_time)
+    output_path = os.path.join(indices_dir, location_time, 'Maps')
+    if not os.path.exists(output_path):
+        print('[INFO] Generating map output path.')
+        os.makedirs(output_path)
 
     # Interactive map
     style_fun = lambda x: {'color': CMAP(x['properties']['index']), 'weight': '1'}
@@ -104,7 +114,8 @@ if __name__ == '__main__':
     interactive_map = folium.Map(
         neighborhood['start_location'], zoom_start=13, tiles='CartoDb dark_matter')
     folium.GeoJson(edges, style_function=style_fun).add_to(interactive_map)
-    interactive_map.save(os.path.join(output_path, 'IntMap_{}.html'.format(index)))
+    interactive_map.save(os.path.join(output_path, 'IntMap_{}_{}_{}.html'.format(
+        index, aggregation_type, missing_image_normalization)))
 
     # Static map
     gdf = gpd.GeoDataFrame(edges, geometry='geometry')
@@ -115,4 +126,5 @@ if __name__ == '__main__':
     plt.axis('off')
     plt.title(location)
     plt.savefig(os.path.join(
-        output_path, 'StaticMap_{}.png'.format(index)))
+        output_path, 'StaticMap_{}_{}_{}.png'.format(
+            index, aggregation_type, missing_image_normalization)))
