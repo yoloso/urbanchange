@@ -8,6 +8,7 @@
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
 #   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -m mark_missing
+#   -c 50
 #
 # Data inputs:
 #   - CSV file including one row per detected object instance (generated
@@ -20,6 +21,7 @@
 
 import argparse
 import json
+import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -50,6 +52,8 @@ parser.add_argument('-i', '--images_dir', required=True,
 parser.add_argument('-m', '--missing_image', required=True,
                     choices=MISSING_IMAGE_NORMALIZATION,
                     help='Choice of missing image normalization')
+parser.add_argument('-c', '--confidence_level', required=True, type=int,
+                    help='Minimum confidence level to filter detections (in percent)')
 
 
 # Helper functions
@@ -244,6 +248,7 @@ if __name__ == '__main__':
     segment_dict_file = args['segment_dictionary']
     images_dir = args['images_dir']
     missing_image_normalization = args['missing_image']
+    min_confidence_level = args['confidence_level']
 
     print('[INFO] Loading segment dictionary, object vectors and image log.')
     # Load object vectors
@@ -269,7 +274,8 @@ if __name__ == '__main__':
         with open(os.path.join(images_dir, 'images.txt'), 'r') as file:
             image_log = pd.read_csv(
                 file, sep=' ', header=0,
-                names=['segment_id', 'img_id', 'panoid', 'img_date'])
+                names=['segment_id', 'img_id', 'panoid', 'img_date'],
+                na_values=['None'])
     except FileNotFoundError:
         raise Exception('[ERROR] images.txt file not found.')
     # Note: the image log may potentially have duplicate lines related to the
@@ -292,8 +298,8 @@ if __name__ == '__main__':
     aggregation_files = {}
     for aggregation in AGGREGATIONS.keys():
         aggregation_files[aggregation] = AppendLogger(
-            os.path.join(segment_vectors_dir, '{}_{}.txt'.format(
-                aggregation, missing_image_normalization)))
+            os.path.join(segment_vectors_dir, '{}_{}_{}.txt'.format(
+                aggregation, missing_image_normalization, str(min_confidence_level))))
 
     # Drop duplicate objects (this may be driven by the 01_detect_segments.py
     # process stopping and restarting)
@@ -305,11 +311,11 @@ if __name__ == '__main__':
 
     # Recognize past progress
     if os.path.exists(os.path.join(
-            segment_vectors_dir, 'ConfxBbox_weighted_{}.txt'.format(
-                missing_image_normalization))):
+            segment_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
+                missing_image_normalization, str(min_confidence_level)))):
         with open(os.path.join(
-                segment_vectors_dir, 'ConfxBbox_weighted_{}.txt'.format(
-                    missing_image_normalization)), 'r') as file:
+                segment_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
+                    missing_image_normalization, str(min_confidence_level))), 'r') as file:
             processed_segments = file.readlines()
         processed_segments = [list(json.loads(segment).keys())[0] for segment in processed_segments]
         key_start = len(set(processed_segments)) - 1
@@ -351,14 +357,18 @@ if __name__ == '__main__':
             # Handle segments with zero images (this type of row is generated in
             # 01_detect_segments.py line 138) and images with at least one
             # missing image if this is the selected missing_image normalization.
-            if (segment_df['img_id'].iloc[0] is None) or (
+            if (segment_df['img_id'].iloc[0] is np.nan) or (
                     missing_image_normalization == 'mark_missing' and segment_missing_images > 0):
                 segment_aggregation = {}
                 for object_class in CLASSES_TO_LABEL.keys():
                     segment_aggregation[object_class] = None
             else:
+                # Filter for minimum confidence level
+                segment_df_filtered = segment_df[
+                    segment_df['confidence'] >= min_confidence_level / 100].copy()
+
                 segment_aggregation = agg_function(
-                    df=segment_df, img_size=image_size, length=segment_length,
+                    df=segment_df_filtered, img_size=image_size, length=segment_length,
                     num_missing_images=segment_missing_images,
                     missing_img_normalization=missing_image_normalization)
 
@@ -376,10 +386,10 @@ if __name__ == '__main__':
     for aggregation in AGGREGATIONS.keys():
         # Get temporary and CSV files for the aggregation
         agg_temporary_file = os.path.join(
-            segment_vectors_dir, '{}_{}.txt'.format(
-                aggregation, missing_image_normalization))
-        agg_new_file = os.path.join(segment_vectors_dir, '{}_{}.csv'.format(
-            aggregation, missing_image_normalization))
+            segment_vectors_dir, '{}_{}_{}.txt'.format(
+                aggregation, missing_image_normalization, str(min_confidence_level)))
+        agg_new_file = os.path.join(segment_vectors_dir, '{}_{}_{}.csv'.format(
+            aggregation, missing_image_normalization, str(min_confidence_level)))
 
         # Check number of processed segments
         with open(agg_temporary_file, 'r') as file:

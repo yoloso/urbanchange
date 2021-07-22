@@ -7,6 +7,7 @@
 #   -a count
 #   -o Outputs/Urban_quality/Res_640
 #   -m mark_missing
+#   -c 50
 #
 # Data inputs:
 #   - CSV file including a representation of each street segment for an
@@ -46,6 +47,8 @@ parser.add_argument('-m', '--missing_image', required=True,
 parser.add_argument('-o', '--output_dir',
                     default=os.path.join('..', '..', 'Outputs', 'Urban_quality', 'Res_640'),
                     help='Output directory path')
+parser.add_argument('-c', '--confidence_level', required=True, type=int,
+                    help='Minimum confidence level to filter detections (in percent)')
 
 
 # Aggregation functions
@@ -79,12 +82,14 @@ if __name__ == '__main__':
     aggregation_type = args['aggregation_type']
     missing_image_normalization = args['missing_image']
     output_dir = args['output_dir']
+    min_confidence_level = args['confidence_level']
 
     # Load representation vectors
     try:
         with open(os.path.join(
-                representation_vectors_dir, '{}_{}.csv'.format(
-                    aggregation_type, missing_image_normalization)), 'r') as file:
+                representation_vectors_dir, '{}_{}_{}.csv'.format(
+                    aggregation_type, missing_image_normalization,
+                    str(min_confidence_level))), 'r') as file:
             representation_vectors = pd.read_csv(file)
     except FileNotFoundError:
         raise Exception('[ERROR] Representation vectors file not found.')
@@ -108,6 +113,7 @@ if __name__ == '__main__':
     # Export
     representation_vectors.to_csv(
         os.path.join(output_dir, location_time,
-                     'indices_{}_{}.csv'.format(
-                         aggregation_type, missing_image_normalization)),
+                     'indices_{}_{}_{}.csv'.format(
+                         aggregation_type, missing_image_normalization,
+                         str(min_confidence_level))),
         index=False)

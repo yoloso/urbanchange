@@ -8,6 +8,7 @@
 #   -d Data/ProcessedData/SFStreetView/segment_dictionary_MissionDistrict.json
 #   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -m mark_missing
+#   -c 50
 #
 # Data inputs:
 #   - CSV file including an index of each street segment (generated using
@@ -47,6 +48,8 @@ parser.add_argument('-m', '--missing_image', required=True,
                     help='Image normalization used to generate segment vectors')
 parser.add_argument('-i', '--index', required=True,
                     help='Index to plot (must match column name in indices.csv)')
+parser.add_argument('-c', '--confidence_level', required=True, type=int,
+                    help='Minimum confidence level to filter detections (in percent)')
 
 
 if __name__ == '__main__':
@@ -57,6 +60,7 @@ if __name__ == '__main__':
     aggregation_type = args['aggregation_type']
     missing_image_normalization = args['missing_image']
     index = args['index']
+    min_confidence_level = args['confidence_level']
 
     # Grab location and location attributes for plotting
     location = location_time.split('_')[0]
@@ -73,8 +77,9 @@ if __name__ == '__main__':
     try:
         print('[INFO] Loading indices for {}'.format(location_time))
         with open(os.path.join(
-                indices_dir, location_time, 'indices_{}_{}.csv'.format(
-                    aggregation_type, missing_image_normalization)), 'r') as file:
+                indices_dir, location_time, 'indices_{}_{}_{}.csv'.format(
+                    aggregation_type, missing_image_normalization,
+                    str(min_confidence_level))), 'r') as file:
             indices = pd.read_csv(file)
     except FileNotFoundError:
         raise Exception('[ERROR] Indices for location-time not found.')
@@ -115,8 +120,9 @@ if __name__ == '__main__':
     interactive_map = folium.Map(
         neighborhood['start_location'], zoom_start=13, tiles='CartoDb dark_matter')
     folium.GeoJson(edges, style_function=style_fun).add_to(interactive_map)
-    interactive_map.save(os.path.join(output_path, 'IntMap_{}_{}_{}.html'.format(
-        index, aggregation_type, missing_image_normalization)))
+    interactive_map.save(os.path.join(output_path, 'IntMap_{}_{}_{}_{}.html'.format(
+        index, aggregation_type, missing_image_normalization,
+        str(min_confidence_level))))
 
     # Static map
     gdf = gpd.GeoDataFrame(edges, geometry='geometry')
@@ -127,5 +133,6 @@ if __name__ == '__main__':
     plt.axis('off')
     plt.title(location)
     plt.savefig(os.path.join(
-        output_path, 'StaticMap_{}_{}_{}.png'.format(
-            index, aggregation_type, missing_image_normalization)))
+        output_path, 'StaticMap_{}_{}_{}_{}.png'.format(
+            index, aggregation_type, missing_image_normalization,
+            str(min_confidence_level))))
