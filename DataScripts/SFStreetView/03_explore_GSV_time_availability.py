@@ -30,6 +30,7 @@
 import folium
 import geopandas as gpd
 import json
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
@@ -174,3 +175,13 @@ for year in years_str:
 folium.LayerControl().add_to(neighborhood_map)
 neighborhood_map.save(os.path.join(
     OUTPUT_PATH, '{}_{}.html'.format(SELECTED_NEIGHBORHOOD, LOCATION_TYPE)))
+
+# Static maps
+for year in years_str:
+    fig, ax = plt.subplots(figsize=(15, 15))
+    gdf[gdf[year] == 1].plot(ax=ax, markersize=2, color='#C0C0C0', label='Available')
+    gdf[gdf[year] == 0].plot(ax=ax, markersize=2, color='#AC0000', label='Unavailable')
+    # plt.legend(prop={'size': 15}, frameon=False, loc='lower center', ncol=2)
+    ax.axis("off")
+    plt.savefig(os.path.join(OUTPUT_PATH, 'StaticMap{}_{}_{}.png'.format(
+        SELECTED_NEIGHBORHOOD, LOCATION_TYPE, year)))

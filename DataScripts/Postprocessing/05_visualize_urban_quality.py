@@ -9,6 +9,7 @@
 #   -i Data/ProcessedData/SFStreetView/Res_640/MissionDistrictBlock_2011-02-01_3/
 #   -m mark_missing
 #   -c 50
+#   -a count
 #
 # Data inputs:
 #   - CSV file including an index of each street segment (generated using
@@ -32,6 +33,9 @@ import pandas as pd
 from locations import LOCATIONS
 from utils import generate_location_graph
 
+
+# Parameters
+MIN_LENGTH = 0  # Filter segments for this minimum length
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -70,7 +74,7 @@ if __name__ == '__main__':
     G = generate_location_graph(neighborhood=neighborhood, simplify=True)
     nodes, edges = ox.graph_to_gdfs(G)
 
-    edges = edges[['osmid', 'name', 'geometry']]
+    edges = edges[['osmid', 'name', 'geometry', 'length']]
     edges.reset_index(inplace=True)
 
     # Load indices
@@ -103,15 +107,22 @@ if __name__ == '__main__':
     # Drop missing values
     edges.dropna(subset=['index'], inplace=True)
 
+    # Filter for minimum length
+    edges = edges[edges['length'] >= MIN_LENGTH]
+
+    # Apply log for visualization purposes
+    edges['index'] += edges['index'] + 0.0001
+    edges['index'] = edges['index'].apply(np.log)
+
     print('[INFO] Generating maps.')
     output_path = os.path.join(indices_dir, location_time, 'Maps')
     if not os.path.exists(output_path):
         print('[INFO] Generating map output path.')
         os.makedirs(output_path)
 
-    # Set up color map
+    # Set up color map (red: higher urban decay; blue: lower urban decay)
     CMAP = cm.LinearColormap(
-        colors=['lightcoral', 'royalblue'], vmin=edges['index'].min(),
+        colors=['royalblue', 'lightcoral'], vmin=edges['index'].min(),
         vmax=edges['index'].max())
 
     # Interactive map
