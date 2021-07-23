@@ -18,7 +18,6 @@ import argparse
 import branca.colormap as cm
 import folium
 import geopandas as gpd
-import json
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -124,13 +123,26 @@ if __name__ == '__main__':
         print('[INFO] Generating map output path.')
         os.makedirs(output_path)
 
-    # Set up color map (red: higher urban decay; blue: lower urban decay)
-    CMAP = cm.LinearColormap(
-        colors=['royalblue', 'lightcoral'], vmin=complete['index'].min(),
-        vmax=complete['index'].max())
+    # Set up color map
+    quantiles = complete['index'].quantile([0.20, 0.40, 0.6, 0.80, 1])
+    CMAP_dark = cm.StepColormap(
+        colors=['#15068a', '#b02a8f', '#ed7b51', '#fde724'],
+        vmin=complete['index'].min(),
+        vmax=complete['index'].max(),
+        index=[quantiles[0.20], quantiles[0.40], quantiles[0.60],
+               quantiles[0.80], quantiles[1.00]]
+    )
+
+    CMAP_light = cm.StepColormap(
+        colors=['#15068a', '#b02a8f', '#ed7b51', '#fde724'],
+        vmin=complete['index'].min(),
+        vmax=complete['index'].max(),
+        index=[quantiles[0.20], quantiles[0.40], quantiles[0.60],
+               quantiles[0.80], quantiles[1.00]]
+    )
 
     # Interactive map
-    style_fun = lambda x: {'color': CMAP(x['properties']['index']), 'weight': '1'}
+    style_fun = lambda x: {'color': CMAP_dark(x['properties']['index']), 'weight': '1'}
 
     gdf = gpd.GeoDataFrame(complete, geometry='geometry')
     interactive_map = folium.Map(
@@ -141,12 +153,11 @@ if __name__ == '__main__':
         str(min_confidence_level))))
 
     # Static map
-    gdf['color'] = gdf.apply(lambda row: CMAP(row['index']), axis=1)
+    gdf['color'] = gdf.apply(lambda row: CMAP_light(row['index']), axis=1)
 
     fig, ax = plt.subplots(figsize=(10, 10))
     gdf.plot(ax=ax, color=gdf['color'])
     plt.axis('off')
-    plt.title(location)
     plt.savefig(os.path.join(
         output_path, 'StaticMap_{}_{}_{}_{}.png'.format(
             index, aggregation_type, missing_image_normalization,
