@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 import CONFIG
-from utils import save_SV_image, reverse_geocode
+from urbanchange_utils import save_SV_image, reverse_geocode
 
 
 # Test set parameters

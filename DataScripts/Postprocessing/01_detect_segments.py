@@ -25,7 +25,8 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from utils import AppendLogger  # TODO: UTILS MODULE CLASHES WITH TORCH.HUB UTILS MODULE
+from urbanchange_utils import AppendLogger
+
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -41,7 +42,7 @@ parser.add_argument('-i', '--input_images', required=True,
                     help='Path to input images for inference')
 
 
-def get_objects(img_result, model_names_list, image_path, seg_id):
+def get_objects(img_result, model_names_list, image_path, seg_id, torch_device):
     """
     Returns a dictionary including the bbox size, confidence and class of each
     object instance detected in an image.
@@ -51,17 +52,21 @@ def get_objects(img_result, model_names_list, image_path, seg_id):
     they are being encoded)
     :param seg_id: (str)
     :param image_path: (str)
+    :param torch_device: one of ['cuda', 'cpu']
     :return: (dict) including the count for each of the classes in model_names_list
     """
     object_dict = {}
     num_objects = img_result.shape[0]
-    img_result = img_result.numpy()  # TODO transfer to CPU if GPU
+
+    if torch_device == 'cuda':
+        img_result = img_result.cpu()
+    img_result = img_result.numpy()
 
     # Add image and segment ID
     object_dict['segment_id'] = [seg_id] * num_objects
-    img_id = image_path.split(os.path.sep)[-1]. \
+    image_id = image_path.split(os.path.sep)[-1]. \
         split('img_{}_'.format(seg_id))[-1].split('.png')[0]
-    object_dict['img_id'] = [img_id] * num_objects
+    object_dict['img_id'] = [image_id] * num_objects
 
     # Get objects
     object_dict['confidence'] = img_result[:, 4].tolist()
@@ -100,6 +105,9 @@ if __name__ == '__main__':
     # Set up intermediate txt file
     logger_path = os.path.join(output_path, 'detections_temp.txt')
     logger = AppendLogger(logger_path)
+
+    # Identify device
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Verify image neighborhood matches segment dictionary neighborhood
     segment_neighborhood = \
@@ -152,7 +160,8 @@ if __name__ == '__main__':
         for i in range(len(results)):
             # Get objects and image ID
             img_objects = get_objects(
-                results.xyxy[i], model_names, image_paths[i], segment_id)
+                results.xyxy[i], model_names, image_paths[i], segment_id,
+                device)
 
             # Loop over each object instance in the image and write to logger
             for j in range(len(img_objects['segment_id'])):

@@ -6,7 +6,7 @@ import yaml
 from zipfile import ZipFile
 
 from object_classes import CLASSES_FROM_LABEL, CLASSES_TO_LABEL
-import utils
+import urbanchange_utils
 
 
 # Parameters
@@ -62,7 +62,7 @@ def correct_annotations(consistency_dictionary, annotation_path):
 def process_image(image_path, rf_dir, split,
                   consistent, consistency_dict, counter, train_only):
     # Get the image name (excluding extension)
-    image_name = utils.get_image_name(image_path)
+    image_name = urbanchange_utils.get_image_name(image_path)
 
     # Get annotations
     annot_path = os.path.join(
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     val_imgs = train_imgs[:NUM_VALID_IMAGES]
 
     for val_img in val_imgs:
-        img_name = utils.get_image_name(val_img)
+        img_name = urbanchange_utils.get_image_name(val_img)
 
         # Move image and annotation file to validation directory
         new_val_img = os.path.join(

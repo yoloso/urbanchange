@@ -25,7 +25,7 @@ import osmnx as ox
 import pandas as pd
 
 from locations import LOCATIONS
-from utils import generate_location_graph
+from urbanchange_utils import generate_location_graph
 
 # Parameters
 MIN_LENGTH = 0  # Filter segments for this minimum length

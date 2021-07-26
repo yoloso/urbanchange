@@ -253,4 +253,4 @@ def preprocess_box_list(box_list):
     for box in box_list:
         pass
     # TODO
-    return num_objects, labels, XXX
+    return None

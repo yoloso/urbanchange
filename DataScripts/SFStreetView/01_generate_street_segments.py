@@ -27,8 +27,8 @@ from shapely.geometry import Point
 from tqdm import tqdm
 
 from locations import LOCATIONS
-from utils import compute_heading, generate_new_latlng_from_distance
-from utils import generate_location_graph, AppendLogger
+from urbanchange_utils import compute_heading, generate_new_latlng_from_distance
+from urbanchange_utils import generate_location_graph, AppendLogger
 
 
 # Parameters

@@ -31,11 +31,11 @@ import streetview
 from tqdm import tqdm
 
 import CONFIG
-from utils import get_SV_image, get_SV_metadata, AppendLogger, Logger
+from urbanchange_utils import get_SV_image, get_SV_metadata, AppendLogger, Logger
 
 # TODO ADD NEWLINE WHEN SCRIPT IS INTERRUPTED
 # Parameters
-SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
+SELECTED_LOCATION = 'MissionDistrict'
 SEGMENT_DICTIONARY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_{}.json'.format(SELECTED_LOCATION))
