@@ -15,9 +15,6 @@ The repo is organized into the following directories.
 
 ### ObjectDetection
 Pipeline to prepare the object detection dataset to be fed to the YOLOv5 model.
-1. `01_merge_OD_datasets.py`
-2. `02_generate_street_test_set.py`
-3. `03_MissionDistrict_TestSet.py`
 
 ### SFStreetView
 Pipeline to generate the street segments for a selected location, visualize
@@ -32,8 +29,18 @@ each street segment.
 ### Postprocessing
 Pipeline to run inference using the YOLOv5 model and generate the representation
 vectors and urban quality indices for each street segment in a location. 
-1. `01_detect_segments.py`
-2. `02_create_representation_vectors.py`
-3. `03_create_segment_indices.py`
-4. `04_indices_in_time.py`
+1. `01_detect_segments.py` Runs inference using custom YOLOv5 weights and 
+extracts the detected objects in each image for each street segment.
+2. `02_create_representation_vectors.py` Generates representation vectors using
+four types of aggregations: counts, confidence-weighted counts, bounding box image
+coverage-weighted counts, confidence and bounding box image coverage-weighted 
+counts. Street segments with missing imagery can be dropped or have their length
+adjusted prior to vector normalization. Vectors are also generating by selecting
+a minimum confidence level for detections.
+3. `03_create_segment_indices.py` Indices for vectors from a specific
+aggregation type, missing imagery handling and confidence level combination are
+generated via sums, weighted sums and extracting each element of the vector (class-
+wise indices). The log versions of each index are also generated.
+4. `04_indices_in_time.py` Computes relative and absolute changes of indices 
+from the same location.
 5. `05_visualize_urban_quality.py`

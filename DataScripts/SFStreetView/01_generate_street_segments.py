@@ -38,7 +38,7 @@ OUTPUT_PATH = os.path.join('..', '..', 'Data', 'ProcessedData', 'SFStreetView')
 SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
 OUTPUT_FILE = 'segment_dictionary_{}.json'.format(SELECTED_LOCATION)
 INTERMEDIATE_FILE_PATH = 'intermediate_segment_dictionary_{}.txt'.format(SELECTED_LOCATION)
-VISUALIZE = False
+VISUALIZE = True
 
 
 # Helper functions
@@ -221,14 +221,6 @@ ox.plot_graph(G_projected)
 basic_stats = ox.basic_stats(G)
 num_street_segments = basic_stats['street_segment_count']
 
-# Visualize street segments in the neighborhood
-if VISUALIZE:
-    style = {'color': '#F7DC6F', 'weight': '1'}
-    Gmap = folium.Map(neighborhood['start_location'], zoom_start=15,
-                      tiles='CartoDb dark_matter')
-    folium.GeoJson(edges, style_function=lambda x: style).add_to(Gmap)
-    Gmap.save(os.path.join(OUTPUT_PATH, '{}Edges.html'.format(SELECTED_LOCATION)))
-
 # Add street bearings
 # Note: "Bearing represents angle in degrees (clockwise) between north and the
 # geodesic line from from the origin node to the destination node"
@@ -286,6 +278,17 @@ for row in tqdm(range(row_start, len(street_segments))):
                 'bearing': bearing, 'coordinates': coords}}
     row_str = json.dumps(row_dict)
     temporary_data.write(row_str)
+
+# Visualize street segments in the neighborhood
+if VISUALIZE:
+    print("[INFO] Generating map of the neighborhood's street segments.")
+    style = {'color': '#CC0066', 'weight': '2'}
+    marker_popup = folium.GeoJsonPopup(fields=['segment_id'])
+    Gmap = folium.Map(neighborhood['start_location'], zoom_start=15)
+    folium.GeoJson(street_segments, style_function=lambda x: style,
+                   popup=marker_popup).add_to(Gmap)
+    Gmap.save(os.path.join(
+        OUTPUT_PATH, 'Segments_{}.html'.format(SELECTED_LOCATION)))
 
 # Save dataset to final version when complete
 with open(os.path.join(OUTPUT_PATH, INTERMEDIATE_FILE_PATH), 'r') as file:

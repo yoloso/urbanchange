@@ -84,15 +84,21 @@ if not os.path.exists(INPUT_PATH):
         for (lat, lng), h1, h2 in segment['coordinates']:
             img_params['location'] = '{},{}'.format(lat, lng)
             pano_metadata = get_SV_metadata(params=img_params)
-            panoramas = panoramas.append(
-                {'pano_id': pano_metadata['pano_id'],
-                 'lat': pano_metadata['location']['lat'],
-                 'lng': pano_metadata['location']['lng']}, ignore_index=True)
+
+            if pano_metadata['status'] == 'OK':
+                panoramas = panoramas.append(
+                    {'pano_id': pano_metadata['pano_id'],
+                     'lat': pano_metadata['location']['lat'],
+                     'lng': pano_metadata['location']['lng']},
+                    ignore_index=True)
 
     panoramas.to_csv(INPUT_PATH)
 else:
     print('[INFO] Loading locations file from input path.')
     panoramas = pd.read_csv(INPUT_PATH)
+
+# Drop duplicate panoramas
+panoramas = panoramas.drop_duplicates(subset=['pano_id'])
 
 # Generate Point objects and GeoDataFrame
 panoramas['geometry'] = panoramas.apply(
