@@ -17,7 +17,7 @@
 # Outputs:
 #   - CSV file including a representation of each street segment (exported to
 #     the same directory as the input file) for each aggregation type
-# TODO how to deal with overlap
+
 
 import argparse
 import json

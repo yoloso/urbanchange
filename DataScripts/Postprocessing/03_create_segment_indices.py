@@ -19,6 +19,7 @@
 #     selected output path)
 
 import argparse
+import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -109,6 +110,13 @@ if __name__ == '__main__':
         agg_fun = AGGREGATIONS[aggregation]
         representation_vectors[aggregation] = \
             representation_vectors.progress_apply(agg_fun, axis=1)
+
+    # Generate logs
+    index_cols = [col for col in representation_vectors.columns if col != 'segment_id']
+    for index_col in index_cols:
+        log_col = '{}_log'.format(index_col)
+        representation_vectors[log_col] = representation_vectors[index_col] + 0.0001
+        representation_vectors[log_col] = representation_vectors[log_col].apply(np.log)
 
     # Export
     representation_vectors.to_csv(

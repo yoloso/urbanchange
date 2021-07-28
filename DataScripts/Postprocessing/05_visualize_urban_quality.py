@@ -27,6 +27,7 @@ import pandas as pd
 from locations import LOCATIONS
 from urbanchange_utils import generate_location_graph
 
+
 # Parameters
 MIN_LENGTH = 0  # Filter segments for this minimum length
 
@@ -112,10 +113,6 @@ if __name__ == '__main__':
 
     # Filter for minimum length
     complete = complete[complete['length'] >= MIN_LENGTH]
-
-    # Apply log for visualization purposes
-    complete['index'] += complete['index'] + 0.0001
-    complete['index'] = complete['index'].apply(np.log)
 
     print('[INFO] Generating maps.')
     output_path = os.path.join(indices_dir, 'Maps')

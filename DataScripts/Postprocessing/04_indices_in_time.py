@@ -103,9 +103,6 @@ if __name__ == '__main__':
         indices[str(i)].rename(columns=column_update, inplace=True)
     merged = pd.merge(indices['0'], indices['1'], on='segment_id')
 
-    # Handle missing values
-    merged.dropna(inplace=True, axis=0, how='any')
-
     # Compute change indices
     for change in CHANGES:
         change_fun = CHANGES[change]

@@ -1,1 +1,0 @@
-# TODO modify so ad hoc time periods can be explored
