@@ -26,8 +26,8 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
-from object_classes import CLASSES_TO_LABEL
-from urbanchange_utils import AppendLogger
+from DataScripts.object_classes import CLASSES_TO_LABEL
+from DataScripts.urbanchange_utils import AppendLogger
 
 # Parameters
 # Length rate (meters): Utilized when normalizing the vectors for the segment

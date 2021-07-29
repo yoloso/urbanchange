@@ -22,9 +22,7 @@
 import argparse
 import os
 import pandas as pd
-from tqdm import tqdm
 
-from object_classes import CLASSES_TO_LABEL
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()

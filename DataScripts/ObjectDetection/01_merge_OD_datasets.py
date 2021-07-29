@@ -6,7 +6,7 @@ import yaml
 from zipfile import ZipFile
 
 from object_classes import CLASSES_FROM_LABEL, CLASSES_TO_LABEL
-import urbanchange_utils
+import DataScripts.urbanchange_utils as urbanchange_utils
 
 
 # Parameters

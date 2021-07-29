@@ -26,9 +26,10 @@ import pandas as pd
 from shapely.geometry import Point
 from tqdm import tqdm
 
-from locations import LOCATIONS
-from urbanchange_utils import compute_heading, generate_new_latlng_from_distance
-from urbanchange_utils import generate_location_graph, AppendLogger
+from DataScripts.locations import LOCATIONS
+from DataScripts.urbanchange_utils import compute_heading
+from DataScripts.urbanchange_utils import generate_new_latlng_from_distance
+from DataScripts.urbanchange_utils import generate_location_graph, AppendLogger
 
 
 # Parameters

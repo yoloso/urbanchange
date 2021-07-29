@@ -30,8 +30,9 @@ import os
 import streetview
 from tqdm import tqdm
 
-import CONFIG
-from urbanchange_utils import get_SV_image, get_SV_metadata, AppendLogger, Logger
+import DataScripts.CONFIG as CONFIG
+from DataScripts.urbanchange_utils import get_SV_image, get_SV_metadata
+from DataScripts.urbanchange_utils import AppendLogger, Logger
 
 # TODO ADD NEWLINE WHEN SCRIPT IS INTERRUPTED
 # Parameters

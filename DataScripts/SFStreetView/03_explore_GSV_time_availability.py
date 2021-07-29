@@ -39,7 +39,7 @@ from shapely.geometry import Point
 import streetview
 from tqdm import tqdm
 
-from locations import LOCATIONS
+from DataScripts.locations import LOCATIONS
 
 
 # Parameters

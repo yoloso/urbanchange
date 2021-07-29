@@ -25,7 +25,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from urbanchange_utils import AppendLogger
+from DataScripts.urbanchange_utils import AppendLogger
 
 
 # Set up command line arguments

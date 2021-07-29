@@ -24,7 +24,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 
-from object_classes import CLASSES_TO_LABEL
+from DataScripts.object_classes import CLASSES_TO_LABEL
 
 # Parameters
 WEIGHTS = {'facade': 0.1,

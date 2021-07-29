@@ -1,9 +1,8 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-import CONFIG
-from urbanchange_utils import save_SV_image, reverse_geocode
+import DataScripts.CONFIG as CONFIG
+from DataScripts.urbanchange_utils import save_SV_image, reverse_geocode
 
 
 # Test set parameters

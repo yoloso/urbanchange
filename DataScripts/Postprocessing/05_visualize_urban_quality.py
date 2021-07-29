@@ -24,8 +24,8 @@ import os
 import osmnx as ox
 import pandas as pd
 
-from locations import LOCATIONS
-from urbanchange_utils import generate_location_graph
+from DataScripts.locations import LOCATIONS
+from DataScripts.urbanchange_utils import generate_location_graph
 
 
 # Parameters

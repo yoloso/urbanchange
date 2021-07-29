@@ -29,9 +29,9 @@ import pandas as pd
 from shapely.geometry import Point
 from tqdm import tqdm
 
-import CONFIG
-from locations import LOCATIONS
-from urbanchange_utils import get_SV_metadata
+import DataScripts.CONFIG as CONFIG
+from DataScripts.locations import LOCATIONS
+from DataScripts.urbanchange_utils import get_SV_metadata
 
 
 # Parameters
