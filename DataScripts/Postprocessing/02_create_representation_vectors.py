@@ -13,6 +13,9 @@
 # Data inputs:
 #   - CSV file including one row per detected object instance (generated
 #     using 01_detect_segments.py on the selected neighborhoods)
+#   - Segment dictionary for the selected neighborhood
+#   - Image log for the selected neighborhood generated during the image
+#   collection process
 #
 # Outputs:
 #   - CSV file including a representation of each street segment (exported to
@@ -199,7 +202,7 @@ if __name__ == '__main__':
 
     # Save temporary files as DataFrames
     print('[INFO] Segment representations generated. Exporting temporary files'
-          'to DataFrames.')
+          ' to DataFrames.')
     for aggregation in AGGREGATIONS.keys():
         # Get temporary and CSV files for the aggregation
         agg_temporary_file = os.path.join(

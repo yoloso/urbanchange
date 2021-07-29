@@ -16,14 +16,13 @@ images_file = os.path.join(
 segment_vectors_dir = os.path.join(
     '..', '..', 'Outputs', 'Detection', 'Res_640',
     'MissionTenderloinAshburyCastroChinatown_2021-02-01')
+IMAGE_LOG_NAMES = ['segment_id', 'img_id', 'panoid', 'img_date']
 
 # Read images file
 try:
     with open(images_file, 'r') as file:
         image_log = pd.read_csv(
-            file, sep=' ', header=0,
-            names=['segment_id', 'img_id', 'panoid', 'img_date'],
-            na_values=['None'])
+            file, sep=' ', header=0, names=IMAGE_LOG_NAMES, na_values=['None'])
 except FileNotFoundError:
     raise Exception('[ERROR] images.txt file not found.')
 

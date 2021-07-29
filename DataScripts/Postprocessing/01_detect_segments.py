@@ -97,6 +97,11 @@ if __name__ == '__main__':
     except FileNotFoundError:
         raise Exception('[ERROR] Segment file dictionary not found.')
 
+    # Check images directory
+    num_images = len(glob.glob(os.path.join(input_images, '*.png')))
+    if num_images == 0:
+        raise Exception('[ERROR] No images found in images directory.')
+
     # Load model with custom weights
     print('[INFO] Loading YOLOv5 model with custom weights.')
     model = torch.hub.load('ultralytics/yolov5', 'custom', path=model_weights)
