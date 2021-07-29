@@ -29,6 +29,7 @@ from tqdm import tqdm
 from DataScripts.object_classes import CLASSES_TO_LABEL
 from DataScripts.urbanchange_utils import AppendLogger
 
+
 # Parameters
 # Length rate (meters): Utilized when normalizing the vectors for the segment
 # length. It specifies the rate to use for counting objects.
