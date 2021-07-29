@@ -29,21 +29,15 @@ from tqdm import tqdm
 from DataScripts.object_classes import CLASSES_TO_LABEL
 from DataScripts.urbanchange_utils import AppendLogger
 
+from DataScripts.vector_aggregations import MISSING_IMAGE_NORMALIZATION
+from DataScripts.vector_aggregations import AGGREGATIONS
 
-# Parameters
-# Length rate (meters): Utilized when normalizing the vectors for the segment
-# length. It specifies the rate to use for counting objects.
-# E.g. a value of 100 indicates we are reporting objects counted per 100 meters.
-# This does not alter the relative values of the representation vectors and is
-# only for readability and to minimize floating point imprecision.
-LENGTH_RATE = 100
-MISSING_IMAGE_NORMALIZATION = ['mark_missing', 'length_adjustment']
-PANORAMA_COVERAGE = 2  # (average meters covered by each panorama view)
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('-v', '--segment_vectors_dir', required=True,
-                    help='Input directory for object vectors produced by 01_detect_segments.py')
+parser.add_argument('-v', '--object_vectors_dir', required=True,
+                    help='Input directory for object vectors '
+                         'produced by 01_detect_segments.py')
 parser.add_argument('-s', '--image_size', required=True, default=640, type=int,
                     help='Image resolution')
 parser.add_argument('-d', '--segment_dictionary', required=True,
@@ -54,197 +48,14 @@ parser.add_argument('-m', '--missing_image', required=True,
                     choices=MISSING_IMAGE_NORMALIZATION,
                     help='Choice of missing image normalization')
 parser.add_argument('-c', '--confidence_level', required=True, type=int,
-                    help='Minimum confidence level to filter detections (in percent)')
+                    help='Minimum confidence level to filter '
+                         'detections (in percent)')
 
-
-# Helper functions
-def generate_full_agg_dictionary(agg_series):
-    """
-    Generates a dictionary including all object classes from a pd.Series
-    :param agg_series: (pd.Series) representing object instance counts or
-    weighted counts for each type of class
-    :return: (dict)
-    """
-    agg_dict = {}
-    for obj_class in CLASSES_TO_LABEL.keys():
-        agg_dict[obj_class] = agg_series.get(key=obj_class, default=0)
-    return agg_dict
-
-
-# Normalization functions
-def adjust_length_with_missings(length, num_missing_images,
-                                missing_img_normalization):
-    """
-    Modifies the street segment length to account for missing images.
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return:
-    """
-    if missing_img_normalization != 'length_adjustment' and num_missing_images > 0:
-        raise Exception('[ERROR] Missing image normalization should be set'
-                        'to length_adjustment if computing vector representations'
-                        'for segments with missing images')
-    # Compute an estimate of the number of missing meters
-    missing_meters = num_missing_images * PANORAMA_COVERAGE
-
-    # Reduce street length. The 1/2 factor is included to reflect that a single
-    # missing image refers to a single view of the street; that is, if a
-    # panorama is missing, it will be double counted as we query it twice (one
-    # time for each heading)
-    adj_length = length - missing_meters / 2
-
-    if adj_length <= 0:
-        print('[WARNING] Non-positive segment length resulting from segment'
-              'length missing image adjustment')
-        adj_length = 0.00001  # Temporary fix to avoid division by zero
-
-    return adj_length
-
-
-# Aggregation functions
-def aggregate_count(df, img_size, length, num_missing_images,
-                    missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: Not used. Added for convenience as it is required by other
-    aggregation functions.
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of counts for each class
-    """
-    counts = df[['img_id', 'class']].groupby(['class']).count()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    counts = counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    counts = generate_full_agg_dictionary(counts['img_id'])
-    return counts
-
-
-def aggregate_confidence_weighted(df, img_size, length, num_missing_images,
-                                  missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the confidence of each instance's prediction.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: Not used. Added for convenience as it is required by other
-    aggregation functions.
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of confidence-weighted counts for each class
-    """
-    # Weight counts
-    weighted_counts = df[['confidence', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['confidence'])
-    return weighted_counts
-
-
-def aggregate_bbox_weighted(df, img_size, length, num_missing_images,
-                            missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the bounding box coverage of the image of each instance's prediction.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: (int) the size of the image (e.g. 640)
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of bounding box-weighted counts for each class
-    """
-    # Normalize bounding boxes to percentage of the image
-    df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
-
-    weighted_counts = \
-        df[['normalized_bbox', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['normalized_bbox'])
-    return weighted_counts
-
-
-def aggregate_confxbbox_weighted(df, img_size, length, num_missing_images,
-                                 missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the bounding box coverage of the image of each instance's
-    prediction and its confidence.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: (int) the size of the image (e.g. 640)
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of bounding box, confidence-weighted counts for each class
-    """
-    # Normalize bounding boxes to percentage of the image
-    df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
-
-    # Weight by confidence
-    df['conf_normalized_bbox'] = df['normalized_bbox'] * df['confidence']
-
-    weighted_counts = \
-        df[['conf_normalized_bbox', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['conf_normalized_bbox'])
-    return weighted_counts
-
-
-# Define aggregation types
-AGGREGATIONS = {'count': aggregate_count,
-                'Conf_weighted': aggregate_confidence_weighted,
-                'Bbox_weighted': aggregate_bbox_weighted,
-                'ConfxBbox_weighted': aggregate_confxbbox_weighted}
 
 if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
-    segment_vectors_dir = args['segment_vectors_dir']
+    object_vectors_dir = args['object_vectors_dir']
     image_size = args['image_size']
     segment_dict_file = args['segment_dictionary']
     images_dir = args['images_dir']
@@ -254,7 +65,7 @@ if __name__ == '__main__':
     print('[INFO] Loading segment dictionary, object vectors and image log.')
     # Load object vectors
     try:
-        with open(os.path.join(segment_vectors_dir, 'detections.csv'), 'r') as file:
+        with open(os.path.join(object_vectors_dir, 'detections.csv'), 'r') as file:
             object_vectors = pd.read_csv(
                 file, dtype={'segment_id': object, 'img_id': object,
                              'object_id': object, 'confidence': float,
@@ -275,48 +86,53 @@ if __name__ == '__main__':
         with open(os.path.join(images_dir, 'images.txt'), 'r') as file:
             image_log = pd.read_csv(
                 file, sep=' ', header=0,
-                names=['segment_id', 'img_id', 'panoid', 'img_date'],
+                names=['segment_id', 'img_id', 'panoid', 'img_date', 'query_id',
+                       'pano_lat', 'pano_lng', 'END'],  # TODO if using old file modify here
                 na_values=['None'])
     except FileNotFoundError:
         raise Exception('[ERROR] images.txt file not found.')
-    # Note: the image log may potentially have duplicate lines related to the
-    # process stopping and picking up again at an unfinished segment.
+
+    # Remove duplicate lines in images log (driven by interrupting the image
+    # collection process)
+    image_log = image_log.drop_duplicates(subset=['segment_id', 'query_id'])  # TODO if using old file modify here
 
     # Get selected location-time and verify the three files match
-    location_time = segment_vectors_dir.split(os.path.sep)[-1]
+    location_time = object_vectors_dir.split(os.path.sep)[-1]
     location = location_time.split('_')[0]
     segment_dict_location = \
         segment_dict_file.split(os.path.sep)[-1].split('.')[0].split('_')[-1]
     images_location_time = images_dir.split(os.path.sep)[-1]
 
     if not (location == segment_dict_location and location_time == images_location_time):
-        raise Exception('[ERROR] Input files point to different location-time '
-                        'selections: {}, {}, {}, {}'.format(
-            location, segment_dict_location, location_time, images_location_time))
+        raise Exception(
+            '[ERROR] Input files point to different location-time '
+            'selections: {}, {}, {}, {}'.format(
+                location, segment_dict_location, location_time,
+                images_location_time))
     print('[INFO] Creating representation vectors for {}'.format(location_time))
 
     # Set up aggregation files
     aggregation_files = {}
     for aggregation in AGGREGATIONS.keys():
         aggregation_files[aggregation] = AppendLogger(
-            os.path.join(segment_vectors_dir, '{}_{}_{}.txt'.format(
-                aggregation, missing_image_normalization, str(min_confidence_level))))
+            os.path.join(object_vectors_dir, '{}_{}_{}.txt'.format(
+                aggregation, missing_image_normalization,
+                str(min_confidence_level))))
 
     # Drop duplicate objects (this may be driven by the 01_detect_segments.py
     # process stopping and restarting)
-    object_vectors.drop_duplicates(subset=['segment_id', 'img_id', 'object_id'],
-                                   inplace=True)
+    object_vectors.drop_duplicates(
+        subset=['segment_id', 'img_id', 'object_id'], inplace=True)
 
     # Aggregate vectors
     print('[INFO] Computing segment vector representations.')
 
     # Recognize past progress
-    if os.path.exists(os.path.join(
-            segment_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
-                missing_image_normalization, str(min_confidence_level)))):
-        with open(os.path.join(
-                segment_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
-                    missing_image_normalization, str(min_confidence_level))), 'r') as file:
+    last_modified_file = os.path.join(
+            object_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
+                missing_image_normalization, str(min_confidence_level)))
+    if os.path.exists(last_modified_file):
+        with open(last_modified_file, 'r') as file:
             processed_segments = file.readlines()
         processed_segments = [list(json.loads(segment).keys())[0] for segment in processed_segments]
         key_start = len(set(processed_segments)) - 1
@@ -339,16 +155,15 @@ if __name__ == '__main__':
             object_vectors[object_vectors['segment_id'] == segment_id].copy()
 
         # Get record of images for the segment to compute missing images.
-        # Note: Missing images are recorded as {segment_id} {NotSaved} {None} {None}
-        # in script 02_collect_street_segment_images.py. We can skip the case
-        # of {segment_id} {UnavailableFirstHeading} {None} {None} and the case
-        # of {segment_id} {UnavailableCoordinates} {None} {None} as they will
+        # Note: Missing images are recorded as {segment_id} {NotSaved} {None}
+        # {None} in script 02_collect_street_segment_images.py. We can skip the
+        # case of {segment_id} {UnavailableFirstHeading} {None} {None} and the
+        # case of {segment_id} {UnavailableCoordinates} {None} {None} as they'll
         # be handled automatically in the 'segments with zero images' case below.
         segment_log = image_log[image_log['segment_id'] == segment_id].copy()
-        segment_missing_images = \
-            segment_log[(segment_log['img_id'] == 'NotSaved') &
-                        (segment_log['panoid'].isnull()) & (
-                            segment_log['img_date'].isnull())]
+        segment_missing_images = segment_log[
+            (segment_log['img_id'] == 'NotSaved') &
+            (segment_log['panoid'].isnull()) & (segment_log['img_date'].isnull())]
         segment_missing_images = len(segment_missing_images)
 
         for aggregation in AGGREGATIONS.keys():
@@ -369,7 +184,8 @@ if __name__ == '__main__':
                     segment_df['confidence'] >= min_confidence_level / 100].copy()
 
                 segment_aggregation = agg_function(
-                    df=segment_df_filtered, img_size=image_size, length=segment_length,
+                    df=segment_df_filtered, img_size=image_size,
+                    length=segment_length,
                     num_missing_images=segment_missing_images,
                     missing_img_normalization=missing_image_normalization)
 
@@ -387,15 +203,16 @@ if __name__ == '__main__':
     for aggregation in AGGREGATIONS.keys():
         # Get temporary and CSV files for the aggregation
         agg_temporary_file = os.path.join(
-            segment_vectors_dir, '{}_{}_{}.txt'.format(
+            object_vectors_dir, '{}_{}_{}.txt'.format(
                 aggregation, missing_image_normalization, str(min_confidence_level)))
-        agg_new_file = os.path.join(segment_vectors_dir, '{}_{}_{}.csv'.format(
+        agg_new_file = os.path.join(object_vectors_dir, '{}_{}_{}.csv'.format(
             aggregation, missing_image_normalization, str(min_confidence_level)))
 
         # Check number of processed segments
         with open(agg_temporary_file, 'r') as file:
             vector_representations = file.readlines()
-        processed_segments = [list(json.loads(segment).keys())[0] for segment in vector_representations]
+        processed_segments = [
+            list(json.loads(segment).keys())[0] for segment in vector_representations]
         number_of_processed_segments = len(set(processed_segments))
 
         # Export if all segments have been processed

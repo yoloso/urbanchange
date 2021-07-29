@@ -10,7 +10,8 @@ from DataScripts.urbanchange_utils import Logger
 
 
 # Parameters
-IMAGE_LOG_NAMES = ['segment_id', 'img_id', 'panoid', 'img_date']
+IMAGE_LOG_NAMES = ['segment_id', 'img_id', 'panoid', 'img_date', 'query_id',
+                   'pano_lat', 'pano_lng', 'END']
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -60,10 +61,10 @@ if __name__ == '__main__':
                 print('[INFO] Fixing line {}'.format(i))
 
                 # Split the row with two image logs
-                comps = log.split(' ')
-                log1 = ' '.join([comps[0], comps[1], comps[2], comps[3][0:10]])
-                log2 = ' '.join([comps[3][10:], comps[4], comps[5], comps[6]])
+                comps = log.split('END')
+                log1 = comps[0] + 'END'
+                log2 = comps[1] + 'END'
                 new_image_log.write(log1)
-                new_image_log.write(log2.rstrip())
+                new_image_log.write(log2)
 
     print('[INFO] images.txt file ready to be used in Postprocessing pipeline.')

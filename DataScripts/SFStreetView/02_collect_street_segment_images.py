@@ -113,23 +113,38 @@ if TIME_PERIOD == 'selected':
             PERIOD_SELECTION['optimal_date'], PERIOD_SELECTION['min'],
             PERIOD_SELECTION['max']))
 
+# Start key and counters
+start_key = 0
+main_counter, image_unavailable_counter = 0, 0
+heading_unavailable_counter, coordinate_unavailable_counter = 0, 0
+
 # Identify remaining street segments to collect
-if not os.path.exists(os.path.join(OUTPUT_PATH, 'images.txt')):
-    start_key = 0
-else:
+if os.path.exists(os.path.join(OUTPUT_PATH, 'images.txt')):
+    print('[INFO] Identifying past image collection progress.')
     with open(os.path.join(OUTPUT_PATH, 'images.txt')) as file:
         images_file = file.readlines()
     collected_keys = [line.split(' ')[0] for line in images_file]
     collected_keys = set(collected_keys)
     start_key = len(collected_keys) - 1
 
+    # Reset counters
+    for log in tqdm(images_file):
+        try:
+            img_id, panoid = log.split(' ')[1], log.split(' ')[2]
+            if img_id == 'UnavailableCoordinates':
+                coordinate_unavailable_counter += 1
+            elif img_id == 'UnavailableFirstHeading':
+                heading_unavailable_counter += 1
+            elif img_id == 'NotSaved' and panoid == 'None':
+                image_unavailable_counter += 1
+            elif img_id != 'NotSaved':
+                main_counter += 1
+        except IndexError:  # This indicates a blank line
+            continue
+
 # Save images for each street segment
 print('[INFO] Saving images for {} street segments.'.format(
     len(segment_dictionary) - start_key))
-main_counter = 0
-image_unavailable_counter = 0
-heading_unavailable_counter = 0
-coordinate_unavailable_counter = 0
 
 for key in tqdm(range(start_key, len(segment_dictionary))):
     segment = segment_dictionary[str(key)]
@@ -143,12 +158,12 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
         print('[WARNING] No coordinates for segment {}: {}'.format(
             key, segment['name']))
         coordinate_unavailable_counter += 1
-        image_log = '{} UnavailableCoordinates NA NA'.format(segment_id)
+        image_log = '{} UnavailableCoordinates NA NA NA NA NA END'.format(segment_id)
         logger.write(image_log)
         continue
 
     # Get images for each coordinate and heading
-    location_counter = 0
+    location_counter, query_counter = 0, 0
     panorama_dict = {}
 
     # These will be used in case a node has no heading information
@@ -157,7 +172,7 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
     # Drop segments with unavailable headings at first node
     if segment['coordinates'][0][1] is None or segment['coordinates'][0][2] is None:
         heading_unavailable_counter += 1
-        image_log = '{} UnavailableFirstHeading NA NA'.format(segment_id)
+        image_log = '{} UnavailableFirstHeading NA NA NA NA NA END'.format(segment_id)
         logger.write(image_log)
         continue
 
@@ -166,17 +181,25 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
 
         # Get the panorama belonging to a location-time combination
         if TIME_PERIOD == 'selected':
-            image_metadata = return_optimal_panoid(lat, lng)
-            image_date = image_metadata['date']
+            opt_pano = return_optimal_panoid(lat, lng)
+            img_params['pano'] = opt_pano['pano_id']
         elif TIME_PERIOD == 'google_default':
             img_params['location'] = '{},{}'.format(lat, lng)
-            image_metadata = get_SV_metadata(params=img_params)
-            image_date = date(int(image_metadata['date'].split('-')[0]),
-                              int(image_metadata['date'].split('-')[1]), 1)
         else:
             raise Exception('[ERROR] TIME_PERIOD should be one of '
                             '[selected, google_default]')
-        image_panoid = image_metadata['pano_id']
+        image_metadata = get_SV_metadata(params=img_params)
+
+        # Get image date, panoid and coordinates if imagery is available
+        if image_metadata['status'] == 'ZERO_RESULTS' or image_metadata[
+            'status'] == 'INVALID_REQUEST':
+            image_panoid, image_date, image_lat, image_lng = None, None, None, None
+        else:
+            image_date = date(int(image_metadata['date'].split('-')[0]),
+                              int(image_metadata['date'].split('-')[1]), 1)
+            image_panoid = image_metadata['pano_id']
+            image_lat = image_metadata['location']['lat']
+            image_lng = image_metadata['location']['lng']
 
         # Get the image for each heading from this panorama
         for heading_num, heading in enumerate([heading1, heading2]):
@@ -206,8 +229,6 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
 
             # Save if available and unique
             if save:
-                if TIME_PERIOD == 'selected':
-                    img_params['pano'] = image_panoid
                 image = get_SV_image(params=img_params)
                 file_name = 'img_{}_h{}_{}.png'.format(
                     segment_id, heading_num, str(location_counter).zfill(3))
@@ -217,23 +238,26 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
                 location_counter += 1
                 main_counter += 1
 
-                image_log = '{} {} {} {}'.format(
-                    segment_id, file_name, image_panoid, image_date)
+                image_log = '{} {} {} {} {} {} {} END'.format(
+                    segment_id, file_name, image_panoid, image_date,
+                    query_counter, image_lat, image_lng)
             else:
-                image_log = '{} NotSaved {} {}'.format(
-                    segment_id, image_panoid, image_date)
+                image_log = '{} NotSaved {} {} {} {} {} END'.format(
+                    segment_id, image_panoid, image_date, query_counter,
+                    image_lat, image_lng)
 
             # Log image metadata
             logger.write(image_log)
+            query_counter += 1
 
         # Update headings if not None
         if heading1 is not None and heading2 is not None:
             previous_headings = heading1, heading2
 
-print('[INFO] Image collection complete.'
-      ' Loaded {} images for {} street segments. '
-      ' Encountered {} unavailable images.'
-      ' Encountered {} segments with unavailable coordinates.'
-      ' Encountered {} segments with unavailable first node heading'.format(
-      main_counter, len(segment_dictionary), image_unavailable_counter,
-      coordinate_unavailable_counter, heading_unavailable_counter))
+print('[INFO] Image collection complete. '
+      'Loaded {} images for {} street segments.\n'
+      '[INFO] Encountered {} unavailable images.\n'
+      '[INFO] Encountered {} segments with unavailable coordinates.\n'
+      '[INFO] Encountered {} segments with unavailable first node heading'.format(
+        main_counter, len(segment_dictionary), image_unavailable_counter,
+        coordinate_unavailable_counter, heading_unavailable_counter))
