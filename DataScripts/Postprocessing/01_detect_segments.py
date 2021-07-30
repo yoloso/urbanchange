@@ -25,6 +25,7 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
+from DataScripts.read_files import load_segment_dict
 from DataScripts.urbanchange_utils import AppendLogger
 
 
@@ -90,12 +91,7 @@ if __name__ == '__main__':
     input_images = args['input_images']
 
     # Load segment dictionary
-    try:
-        print('[INFO] Loading segment dictionary.')
-        with open(segment_dictionary_file, 'r') as seg_file:
-            segment_dictionary = json.load(seg_file)
-    except FileNotFoundError:
-        raise Exception('[ERROR] Segment file dictionary not found.')
+    segment_dictionary = load_segment_dict(segment_dictionary_file)
 
     # Check images directory
     num_images = len(glob.glob(os.path.join(input_images, '*.png')))
@@ -130,7 +126,8 @@ if __name__ == '__main__':
     else:
         with open(logger_path, 'r') as file:
             processed_segments = file.readlines()
-        processed_segments = [segment.split(' ')[0] for segment in processed_segments]
+        processed_segments = [
+            segment.split(' ')[0] for segment in processed_segments]
         key_start = len(set(processed_segments)) - 1
 
     # Inference on each segment and image
@@ -187,7 +184,8 @@ if __name__ == '__main__':
     # Check number of processed object vectors and save to DataFrame
     with open(logger_path, 'r') as file:
         processed_object_vectors = file.readlines()
-    processed_segments = [segment.split(' ')[0] for segment in processed_object_vectors]
+    processed_segments = [
+        segment.split(' ')[0] for segment in processed_object_vectors]
     number_of_processed_segments = len(set(processed_segments))
 
     # Export to pd.DataFrame if all segments have been processed
@@ -210,6 +208,7 @@ if __name__ == '__main__':
                 object_instance_dict, ignore_index=True)
 
         # Export to CSV
-        object_vectors.to_csv(os.path.join(output_path, 'detections.csv'), index=False)
+        object_vectors.to_csv(
+            os.path.join(output_path, 'detections.csv'), index=False)
     else:
         raise Exception('[ERROR] Incomplete street segment temporary file.')

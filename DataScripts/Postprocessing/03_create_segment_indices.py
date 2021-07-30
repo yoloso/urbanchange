@@ -26,6 +26,7 @@ from tqdm import tqdm
 
 from DataScripts.object_classes import CLASSES_TO_LABEL
 
+
 # Parameters
 WEIGHTS = {'facade': 0.1,
            'graffiti': 0.2,
@@ -112,7 +113,8 @@ if __name__ == '__main__':
             representation_vectors.progress_apply(agg_fun, axis=1)
 
     # Generate logs
-    index_cols = [col for col in representation_vectors.columns if col != 'segment_id']
+    index_cols = [
+        col for col in representation_vectors.columns if col != 'segment_id']
     for index_col in index_cols:
         log_col = '{}_log'.format(index_col)
         representation_vectors[log_col] = representation_vectors[index_col] + 0.0001

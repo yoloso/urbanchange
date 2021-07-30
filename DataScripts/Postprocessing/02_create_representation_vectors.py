@@ -30,6 +30,8 @@ import pandas as pd
 from tqdm import tqdm
 
 from DataScripts.object_classes import CLASSES_TO_LABEL
+from DataScripts.read_files import prep_image_log, prep_object_vectors
+from DataScripts.read_files import load_segment_dict
 from DataScripts.urbanchange_utils import AppendLogger
 
 from DataScripts.vector_aggregations import MISSING_IMAGE_NORMALIZATION
@@ -65,39 +67,11 @@ if __name__ == '__main__':
     missing_image_normalization = args['missing_image']
     min_confidence_level = args['confidence_level']
 
+    # Load files
     print('[INFO] Loading segment dictionary, object vectors and image log.')
-    # Load object vectors
-    try:
-        with open(os.path.join(object_vectors_dir, 'detections.csv'), 'r') as file:
-            object_vectors = pd.read_csv(
-                file, dtype={'segment_id': object, 'img_id': object,
-                             'object_id': object, 'confidence': float,
-                             'bbox_size': float, 'class': object},
-                na_values=['None'])
-    except FileNotFoundError:
-        raise Exception('[ERROR] Segment vectors file not found.')
-
-    # Load segment dictionary
-    try:
-        with open(segment_dict_file, 'r') as file:
-            segment_dictionary = json.load(file)
-    except FileNotFoundError:
-        raise Exception('[ERROR] Segment dictionary not found.')
-
-    # Load images.txt file for neighborhood
-    try:
-        with open(os.path.join(images_dir, 'images.txt'), 'r') as file:
-            image_log = pd.read_csv(
-                file, sep=' ', header=0,
-                names=['segment_id', 'img_id', 'panoid', 'img_date', 'query_id',
-                       'pano_lat', 'pano_lng', 'END'],  # TODO if using old file modify here
-                na_values=['None'])
-    except FileNotFoundError:
-        raise Exception('[ERROR] images.txt file not found.')
-
-    # Remove duplicate lines in images log (driven by interrupting the image
-    # collection process)
-    image_log = image_log.drop_duplicates(subset=['segment_id', 'query_id'])  # TODO if using old file modify here
+    object_vectors = prep_object_vectors(object_vectors_dir)
+    segment_dictionary = load_segment_dict(segment_dict_file)
+    image_log = prep_image_log(images_dir)
 
     # Get selected location-time and verify the three files match
     location_time = object_vectors_dir.split(os.path.sep)[-1]
@@ -121,11 +95,6 @@ if __name__ == '__main__':
             os.path.join(object_vectors_dir, '{}_{}_{}.txt'.format(
                 aggregation, missing_image_normalization,
                 str(min_confidence_level))))
-
-    # Drop duplicate objects (this may be driven by the 01_detect_segments.py
-    # process stopping and restarting)
-    object_vectors.drop_duplicates(
-        subset=['segment_id', 'img_id', 'object_id'], inplace=True)
 
     # Aggregate vectors
     print('[INFO] Computing segment vector representations.')
