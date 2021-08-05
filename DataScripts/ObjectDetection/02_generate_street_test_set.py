@@ -17,6 +17,7 @@ GRID = [[37.76583204171835, -122.43090178068529],  # Mission District
 img_params = {
     'size': '640x640',
     'key': CONFIG.SV_api_key,
+    'source': 'outdoor'
 }
 
 geo_params = {

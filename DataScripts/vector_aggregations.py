@@ -8,7 +8,8 @@ from DataScripts.object_classes import CLASSES_TO_LABEL
 # This does not alter the relative values of the representation vectors and is
 # only for readability and to minimize floating point imprecision.
 LENGTH_RATE = 100
-MISSING_IMAGE_NORMALIZATION = ['mark_missing', 'length_adjustment']
+MISSING_IMAGE_NORMALIZATION = [
+    'mark_missing', 'length_adjustment', 'pano_adjustment']
 PANORAMA_COVERAGE = 2  # (average meters covered by each panorama view)
 
 
@@ -59,138 +60,64 @@ def adjust_length_with_missings(length, num_missing_images,
 
 
 # Aggregation functions
-def aggregate_count(df, img_size, length, num_missing_images,
-                    missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: Not used. Added for convenience as it is required by other
-    aggregation functions.
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of counts for each class
-    """
-    counts = df[['img_id', 'class']].groupby(['class']).count()
+def generate_agg_function(agg_type):
+    def agg_function(df, img_size, length, num_missing_images,
+                     num_captured_images, missing_img_normalization):
+        """
+        Aggregates a DataFrame representing the object instances observed in a
+        particular street segment by generating a weighted count of the number
+        of objects in each class.
+        :param df: (pd.DataFrame) containing rows for a particular segment_id,
+        and the columns: img_id, confidence, bbox_size and class. Each row
+        represents the instance of an object observed in an image associated
+        to the street segment.
+        :param img_size: (int) image resolution
+        :param length: (float) length of the street segment (meters)
+        :param num_captured_images: (int) number of images captured for the segment
+        :param num_missing_images: (int) number of panoramas that were missing
+        when collecting the imagery for the street segment
+        :param missing_img_normalization: one of the MISSING_IMAGE_NORMALIZATION
+        list
+        :return: (dict) of weighted counts for each class
+        """
+        if agg_type == 'count':
+            counts = df[['img_id', 'class']].groupby(['class']).count()
+            counts.rename(columns={'img_id': 'index'}, inplace=True)
+        elif agg_type == 'Conf_weighted':
+            counts = df[['confidence', 'class']].groupby(['class']).sum()
+            counts.rename(columns={'confidence': 'index'}, inplace=True)
+        elif agg_type == 'Bbox_weighted':
+            df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
+            counts = df[['normalized_bbox', 'class']].groupby(['class']).sum()
+            counts.rename(columns={'normalized_bbox': 'index'}, inplace=True)
+        elif agg_type == 'ConfxBbox_weighted':
+            df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
+            df['conf_normalized_bbox'] = df['normalized_bbox'] * df['confidence']
+            counts = df[['conf_normalized_bbox', 'class']].groupby(['class']).sum()
+            counts.rename(columns={'conf_normalized_bbox': 'index'}, inplace=True)
+        else:
+            raise Exception('[ERROR] Incorrect aggregation type.')
 
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    counts = counts / adj_length * LENGTH_RATE
+        # Normalize
+        if missing_img_normalization in ['length_adjustment', 'mark_missing']:
+            adj_length = adjust_length_with_missings(
+                length, num_missing_images, missing_img_normalization)
+            counts = counts / adj_length * LENGTH_RATE
+        elif missing_img_normalization == 'pano_adjustment':
+            counts = counts / num_captured_images
+        else:
+            raise Exception('[ERROR] Incorrect adjustment selection.')
 
-    # Generate complete dictionary
-    counts = generate_full_agg_dictionary(counts['img_id'])
-    return counts
+        # Generate complete dictionary
+        counts = generate_full_agg_dictionary(counts['index'])
+        return counts
 
-
-def aggregate_confidence_weighted(df, img_size, length, num_missing_images,
-                                  missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the confidence of each instance's prediction.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: Not used. Added for convenience as it is required by other
-    aggregation functions.
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of confidence-weighted counts for each class
-    """
-    # Weight counts
-    weighted_counts = df[['confidence', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['confidence'])
-    return weighted_counts
-
-
-def aggregate_bbox_weighted(df, img_size, length, num_missing_images,
-                            missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the bounding box coverage of the image of each instance's prediction.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: (int) the size of the image (e.g. 640)
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of bounding box-weighted counts for each class
-    """
-    # Normalize bounding boxes to percentage of the image
-    df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
-
-    weighted_counts = \
-        df[['normalized_bbox', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['normalized_bbox'])
-    return weighted_counts
-
-
-def aggregate_confxbbox_weighted(df, img_size, length, num_missing_images,
-                                 missing_img_normalization):
-    """
-    Aggregates a DataFrame representing the object instances observed in a
-    particular street segment by counting the number of objects in each class,
-    weighted by the bounding box coverage of the image of each instance's
-    prediction and its confidence.
-    :param df: (pd.DataFrame) containing rows for a particular segment_id, and
-    the columns: img_id, confidence, bbox_size and class. Each row represents
-    the instance of an object observed in an image associated to the street segment.
-    :param img_size: (int) the size of the image (e.g. 640)
-    :param length: (float) length of the street segment (meters)
-    :param num_missing_images: (int) number of panoramas that were missing
-    when collecting the imagery for the street segment
-    :param missing_img_normalization: Equal to 'length_adjustment' if computing
-    a representation vector for a segment that includes missing images
-    :return: (dict) of bounding box, confidence-weighted counts for each class
-    """
-    # Normalize bounding boxes to percentage of the image
-    df['normalized_bbox'] = df['bbox_size'] / (img_size * img_size) * 100
-
-    # Weight by confidence
-    df['conf_normalized_bbox'] = df['normalized_bbox'] * df['confidence']
-
-    weighted_counts = \
-        df[['conf_normalized_bbox', 'class']].groupby(['class']).sum()
-
-    # Normalize by street length
-    adj_length = adjust_length_with_missings(
-        length, num_missing_images, missing_img_normalization)
-    weighted_counts = weighted_counts / adj_length * LENGTH_RATE
-
-    # Generate complete dictionary
-    weighted_counts = generate_full_agg_dictionary(weighted_counts['conf_normalized_bbox'])
-    return weighted_counts
+    return agg_function
 
 
 # Define aggregation types
-AGGREGATIONS = {'count': aggregate_count,
-                'Conf_weighted': aggregate_confidence_weighted,
-                'Bbox_weighted': aggregate_bbox_weighted,
-                'ConfxBbox_weighted': aggregate_confxbbox_weighted}
+aggregation_types = ['count', 'Conf_weighted', 'Bbox_weighted', 'ConfxBbox_weighted']
+
+AGGREGATIONS = {}
+for agg in aggregation_types:
+    AGGREGATIONS[agg] = generate_agg_function(agg)

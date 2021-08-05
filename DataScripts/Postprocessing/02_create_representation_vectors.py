@@ -56,7 +56,6 @@ parser.add_argument('-c', '--confidence_level', required=True, type=int,
                     help='Minimum confidence level to filter '
                          'detections (in percent)')
 
-
 if __name__ == '__main__':
     # Capture command line arguments
     args = vars(parser.parse_args())
@@ -101,8 +100,8 @@ if __name__ == '__main__':
 
     # Recognize past progress
     last_modified_file = os.path.join(
-            object_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
-                missing_image_normalization, str(min_confidence_level)))
+        object_vectors_dir, 'ConfxBbox_weighted_{}_{}.txt'.format(
+            missing_image_normalization, str(min_confidence_level)))
     if os.path.exists(last_modified_file):
         with open(last_modified_file, 'r') as file:
             processed_segments = file.readlines()
@@ -138,12 +137,18 @@ if __name__ == '__main__':
             (segment_log['panoid'].isnull()) & (segment_log['img_date'].isnull())]
         segment_missing_images = len(segment_missing_images)
 
+        # Get number of captured images for the segment
+        segment_captured_imgs = segment_log[
+            ~segment_log['img_id'].isin(['NotSaved', 'UnavailableFirstHeading',
+                                         'UnavailableCoordinates'])].copy()
+        segment_captured_imgs = len(segment_captured_imgs)
+
         for aggregation in AGGREGATIONS.keys():
             # Compute aggregation and save to file
             agg_function = AGGREGATIONS[aggregation]
 
             # Handle segments with zero images (this type of row is generated in
-            # 01_detect_segments.py line 138) and images with at least one
+            # 01_detect_segments.py line 152) and images with at least one
             # missing image if this is the selected missing_image normalization.
             if (segment_df['img_id'].iloc[0] is np.nan) or (
                     missing_image_normalization == 'mark_missing' and segment_missing_images > 0):
@@ -159,6 +164,7 @@ if __name__ == '__main__':
                     df=segment_df_filtered, img_size=image_size,
                     length=segment_length,
                     num_missing_images=segment_missing_images,
+                    num_captured_images=segment_captured_imgs,
                     missing_img_normalization=missing_image_normalization)
 
             # Tag with the segment ID
@@ -208,6 +214,9 @@ if __name__ == '__main__':
 
             # Save CSV
             segment_representations.to_csv(agg_new_file, index=False)
+
+            # Delete temporary file
+            os.remove(agg_temporary_file)
 
         else:
             raise Exception('[ERROR] Incomplete street segments representations'

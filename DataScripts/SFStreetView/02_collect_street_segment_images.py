@@ -60,7 +60,8 @@ else:
 
 IMG_PARAMS = {
     'size': '640x640',
-    'key': CONFIG.SV_api_key
+    'key': CONFIG.SV_api_key,
+    'source': 'outdoor'
 }
 
 
@@ -191,8 +192,7 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
         image_metadata = get_SV_metadata(params=img_params)
 
         # Get image date, panoid and coordinates if imagery is available
-        if image_metadata['status'] == 'ZERO_RESULTS' or image_metadata[
-            'status'] == 'INVALID_REQUEST':
+        if image_metadata['status'] != 'OK':
             image_panoid, image_date, image_lat, image_lng = None, None, None, None
         else:
             image_date = date(int(image_metadata['date'].split('-')[0]),

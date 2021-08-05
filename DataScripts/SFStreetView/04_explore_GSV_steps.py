@@ -48,7 +48,9 @@ OUTPUT_PATH = os.path.join(
 # Image params
 img_params = {
     'size': '640x640',
-    'key': CONFIG.SV_api_key}
+    'key': CONFIG.SV_api_key,
+    'source': 'outdoor'
+}
 
 # Get neighborhood
 neighborhood = LOCATIONS[SELECTED_NEIGHBORHOOD]
