@@ -44,6 +44,8 @@ from DataScripts.locations import LOCATIONS
 
 # Parameters
 PERIODS = {
+    '2007': {'start': date(2007, 1, 1), 'end': date(2007, 12, 31)},
+    '2008': {'start': date(2008, 1, 1), 'end': date(2008, 12, 31)},
     '2011': {'start': date(2011, 1, 1), 'end': date(2011, 12, 31)},
     '2012': {'start': date(2012, 1, 1), 'end': date(2012, 12, 31)},
     '2013': {'start': date(2013, 1, 1), 'end': date(2013, 12, 31)},
