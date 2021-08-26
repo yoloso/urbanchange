@@ -225,6 +225,9 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
     # Skip segment if segment is restricted
     if segment_id in restricted_segments:
         print('[INFO] Restricted segment {}: {}'.format(key, segment['name']))
+        coordinate_unavailable_counter += 1
+        image_log = '{} RestrictedSegment NA NA NA NA NA END'.format(segment_id)
+        logger.write(image_log)
         continue
 
     # Check segment coordinates
@@ -271,6 +274,17 @@ for key in tqdm(range(start_key, len(segment_dictionary))):
         else:
             raise Exception('[ERROR] TIME_PERIOD should be one of '
                             '[google_default, selected, full]')
+
+        # Register if imagery is unavailable
+        if len(panos_to_process) == 0:
+            image_panoid, image_date, image_lat, image_lng = None, None, None, None
+            for x in range(2):
+                image_unavailable_counter += 1
+                image_log = '{} NotSaved {} {} {} {} {} END'.format(
+                    segment_id, image_panoid, image_date, query_counter,
+                    image_lat, image_lng)
+                logger.write(image_log)
+                query_counter += 1
 
         for pano_params in panos_to_process:
             image_metadata = get_SV_metadata(params=pano_params)
