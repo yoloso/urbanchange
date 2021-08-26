@@ -6,7 +6,8 @@ CLASSES_FROM_LABEL = {0: 'facade',
                       4: 'pothole',
                       5: 'tent',
                       6: 'window',
-                      7: 'graffiti2'}
+                      7: 'graffiti2',
+                      8: 'outdoor-establishment'}
 
 CLASSES_TO_LABEL = {'facade': 0,
                     'graffiti': 1,
@@ -15,4 +16,5 @@ CLASSES_TO_LABEL = {'facade': 0,
                     'pothole': 4,
                     'tent': 5,
                     'window': 6,
-                    'graffiti2': 7}
+                    'graffiti2': 7,
+                    'outdoor-establishment': 8}

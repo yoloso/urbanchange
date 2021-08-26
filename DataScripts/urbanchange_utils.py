@@ -186,3 +186,10 @@ class AppendLogger:
         """
         with open(self.path, 'a+') as file:
             file.write(text + '\n')
+
+
+# Processing images -------------------------
+def get_image_name(image_path):
+    image_name = image_path.split(os.path.sep)[-1]
+    image_name = '.'.join(image_name.split('.')[:-1])
+    return image_name

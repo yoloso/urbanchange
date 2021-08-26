@@ -11,11 +11,14 @@ import DataScripts.urbanchange_utils as urbanchange_utils
 
 # Parameters
 ROBOFLOW_DIRECTORY = os.path.join(
-    '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Res_640', 'Roboflow')
+    '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Res_640',
+    'Iteration2', 'Roboflow')
 OUTPUT_DIRECTORY = os.path.join(
-    '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640')
-NUM_VALID_IMAGES = 200
-TRAIN_ONLY_BATCHES = ['batch5.v1-batch5640.yolov5pytorch'] # Marks a directory for train split only (not validation)
+    '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640',
+    'Iteration2')
+NUM_VALID_IMAGES = 300
+# Mark a directory for train split only (not validation)
+TRAIN_ONLY_BATCHES = ['batch5.v2-iteration2graffiti.yolov5pytorch']
 
 CLASS_LIST = [CLASSES_FROM_LABEL[i] for i in range(len(CLASSES_FROM_LABEL))]
 
