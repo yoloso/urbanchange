@@ -161,19 +161,12 @@ if __name__ == '__main__':
             image_paths_list.append(image_paths)
         except RuntimeError:
             # Handle out of memory errors
-            image_paths_g1 = image_paths[0:int(len(image_paths) / 2)]
-            image_paths_g2 = image_paths[int(len(image_paths) / 2):]
-
-            images1 = image_paths_g1.copy()
-            images2 = image_paths_g2.copy()
-
-            results1 = model(images1, size=image_size)
-            results2 = model(images2, size=image_size)
-
-            results_list.append(results1)
-            results_list.append(results2)
-            image_paths_list.append(image_paths_g1)
-            image_paths_list.append(image_paths_g2)
+            image_path_groups = np.array_split(image_paths, 4)
+            for image_path_group in image_path_groups:
+                images_group = image_path_group.copy()
+                results_group = model(images_group, size=image_size)
+                results_list.append(results_group)
+                image_paths_list.append(image_path_group)
 
         # Add to segment vector DataFrame
         # Loop over each image in the segment
