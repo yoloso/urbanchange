@@ -163,6 +163,7 @@ if __name__ == '__main__':
             # Handle out of memory errors
             image_path_groups = np.array_split(image_paths, 4)
             for image_path_group in image_path_groups:
+                image_path_group = image_path_group.tolist()
                 images_group = image_path_group.copy()
                 results_group = model(images_group, size=image_size)
                 results_list.append(results_group)
