@@ -154,28 +154,49 @@ if __name__ == '__main__':
                 segment_id, None, None, None, None, None))
             continue
 
-        results = model(images, size=image_size)
+        results_list, image_paths_list = [], []
+        try:
+            results = model(images, size=image_size)
+            results_list.append(results)
+            image_paths_list.append(image_paths)
+        except RuntimeError:
+            # Handle out of memory errors
+            image_paths_g1 = image_paths[0:int(len(image_paths) / 2)]
+            image_paths_g2 = image_paths[int(len(image_paths) / 2):]
+
+            images1 = image_paths_g1.copy()
+            images2 = image_paths_g2.copy()
+
+            results1 = model(images1, size=image_size)
+            results2 = model(images2, size=image_size)
+
+            results_list.append(results1)
+            results_list.append(results2)
+            image_paths_list.append(image_paths_g1)
+            image_paths_list.append(image_paths_g2)
 
         # Add to segment vector DataFrame
         # Loop over each image in the segment
         segment_result_counter = 0
-        for i in range(len(results)):
-            # Get objects and image ID
-            img_objects = get_objects(
-                results.xyxy[i], model_names, image_paths[i], segment_id,
-                device)
+        for results_batch, image_paths_batch in zip(results_list, image_paths_list):
+            # Loop over each image
+            for i in range(len(results)):
+                # Get objects and image ID
+                img_objects = get_objects(
+                    results_batch.xyxy[i], model_names, image_paths_batch[i],
+                    segment_id, device)
 
-            # Loop over each object instance in the image and write to logger
-            for j in range(len(img_objects['segment_id'])):
-                logger.write('{} {} {} {} {} {}'.format(
-                    img_objects['segment_id'][j],  # Segment ID
-                    img_objects['img_id'][j],  # Image ID
-                    j,  # Object instance ID
-                    round(img_objects['confidence'][j], 4),  # Confidence
-                    round(img_objects['bbox_size'][j], 2),  # Bounding box size
-                    img_objects['class'][j]  # Class
-                ))
-                segment_result_counter += 1
+                # Loop over each object instance in the image and write to logger
+                for j in range(len(img_objects['segment_id'])):
+                    logger.write('{} {} {} {} {} {}'.format(
+                        img_objects['segment_id'][j],  # Segment ID
+                        img_objects['img_id'][j],  # Image ID
+                        j,  # Object instance ID
+                        round(img_objects['confidence'][j], 4),  # Confidence
+                        round(img_objects['bbox_size'][j], 2),  # Bounding box size
+                        img_objects['class'][j]  # Class
+                    ))
+                    segment_result_counter += 1
 
         if segment_result_counter == 0:
             logger.write('{} {} {} {} {} {}'.format(
