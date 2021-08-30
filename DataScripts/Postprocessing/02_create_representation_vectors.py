@@ -23,6 +23,7 @@
 
 
 import argparse
+from datetime import date
 import json
 import numpy as np
 import os
@@ -74,7 +75,9 @@ if __name__ == '__main__':
 
     # Get selected location-time and verify the three files match
     location_time = object_vectors_dir.split(os.path.sep)[-1]
-    location = location_time.split('_')[0]
+    location, time = location_time.split('_')[0], location_time.split('_')[1]
+    time = date(int(time.split('-')[0]), int(time.split('-')[1]),
+                int(time.split('-')[2]))
     segment_dict_location = \
         segment_dict_file.split(os.path.sep)[-1].split('.')[0].split('_')[-1]
     images_location_time = images_dir.split(os.path.sep)[-1]
@@ -86,6 +89,24 @@ if __name__ == '__main__':
                 location, segment_dict_location, location_time,
                 images_location_time))
     print('[INFO] Creating representation vectors for {}'.format(location_time))
+
+    # Identify whether this is a timestamped neighborhood
+    timestamped = False
+    if '_full_' in location_time:
+        timestamped = True
+
+    # Add date information if neighborhood is timestamped
+    if timestamped:
+        image_dates = image_log.copy()
+        image_dates['image_name'] = image_dates['img_id'].apply(
+            lambda x: '_'.join(x.split('_')[2:4]).split('.')[0] if 'img' in x else None
+        )
+        image_dates = image_dates[['segment_id', 'image_name', 'img_date']]
+        image_dates = image_dates[image_dates['image_name'].notnull()]
+
+        object_vectors = object_vectors.merge(
+            image_dates, how='left', left_on=['segment_id', 'img_id'],
+            right_on=['segment_id', 'image_name'], validate='many_to_one')
 
     # Set up aggregation files
     aggregation_files = {}
@@ -122,58 +143,98 @@ if __name__ == '__main__':
         # Get segment length to normalize vectors
         segment_length = float(segment['length'])
 
-        segment_df = \
-            object_vectors[object_vectors['segment_id'] == segment_id].copy()
+        # Set up list of segment_dfs and segment_logs to process
+        segment_dfs = {}
+        segment_logs = {}
 
-        # Get record of images for the segment to compute missing images.
-        # Note: Missing images are recorded as {segment_id} {NotSaved} {None}
-        # {None} in script 02_collect_street_segment_images.py. We can skip the
-        # case of {segment_id} {UnavailableFirstHeading} {None} {None} and the
-        # case of {segment_id} {UnavailableCoordinates} {None} {None} as they'll
-        # be handled automatically in the 'segments with zero images' case below.
-        segment_log = image_log[image_log['segment_id'] == segment_id].copy()
-        segment_missing_images = segment_log[
-            (segment_log['img_id'] == 'NotSaved') &
-            (segment_log['panoid'].isnull()) & (segment_log['img_date'].isnull())]
-        segment_missing_images = len(segment_missing_images)
+        if timestamped:
+            segment_dates = object_vectors[
+                object_vectors['segment_id'] == segment_id]['img_date'].unique()
+            for date in segment_dates:
+                segment_dfs[date] =\
+                    object_vectors[(object_vectors['segment_id'] == segment_id) &
+                                   (object_vectors['img_date'] == date)].copy()
+                segment_logs[date] =\
+                    image_log[(image_log['segment_id'] == segment_id) &
+                              (image_log['img_date'] == date)].copy()
+        else:
+            segment_dates = [time]
+            segment_dfs[time] =\
+                object_vectors[object_vectors['segment_id'] == segment_id].copy()
+            segment_logs[time] =\
+                image_log[image_log['segment_id'] == segment_id].copy()
 
-        # Get number of captured images for the segment
-        segment_captured_imgs = segment_log[
-            ~segment_log['img_id'].isin(['NotSaved', 'UnavailableFirstHeading',
-                                         'UnavailableCoordinates'])].copy()
-        segment_captured_imgs = len(segment_captured_imgs)
+        # Handle case of segments with zero imagery. Note: Even though this is
+        # accounted for below, we need to do so here as well in case the
+        # segment is timestamped, as we won't step into the for loop.
+        if len(segment_dates) == 0:
+            segment_aggregation = {}
+            for object_class in CLASSES_TO_LABEL.keys():
+                segment_aggregation[object_class] = None
 
-        for aggregation in AGGREGATIONS.keys():
-            # Compute aggregation and save to file
-            agg_function = AGGREGATIONS[aggregation]
-
-            # Handle segments with zero images (this type of row is generated in
-            # 01_detect_segments.py line 152) and images with at least one
-            # missing image if this is the selected missing_image normalization.
-            if (segment_df['img_id'].iloc[0] is np.nan) or (
-                    missing_image_normalization == 'mark_missing' and segment_missing_images > 0):
-                segment_aggregation = {}
-                for object_class in CLASSES_TO_LABEL.keys():
-                    segment_aggregation[object_class] = None
-            else:
-                # Filter for minimum confidence level
-                segment_df_filtered = segment_df[
-                    segment_df['confidence'] >= min_confidence_level / 100].copy()
-
-                segment_aggregation = agg_function(
-                    df=segment_df_filtered, img_size=image_size,
-                    length=segment_length,
-                    num_missing_images=segment_missing_images,
-                    num_captured_images=segment_captured_imgs,
-                    missing_img_normalization=missing_image_normalization)
-
-            # Tag with the segment ID
-            segment_aggregation = {segment_id: segment_aggregation}
+            segment_aggregation = {
+                segment_id: segment_aggregation, 'segment_date': 'None'}
             row_str = json.dumps(segment_aggregation)
 
-            # Save to file
-            agg_logger = aggregation_files[aggregation]
-            agg_logger.write(row_str)
+            for aggregation in AGGREGATIONS.keys():
+                # Save to file
+                agg_logger = aggregation_files[aggregation]
+                agg_logger.write(row_str)
+
+        for date in segment_dates:
+            segment_df = segment_dfs[date]
+            segment_log = segment_logs[date]
+
+            # Get record of images for the segment to compute missing images.
+            # Note: Missing images are recorded as {segment_id} {NotSaved}
+            # {None} {None} in script 02_collect_street_segment_images.py. We
+            # can skip the case of {segment_id} {UnavailableFirstHeading} {None}
+            # {None} and {segment_id} {UnavailableCoordinates} {None} {None} as
+            # they'll be handled automatically in the 'segments with zero
+            # images' case below.
+            segment_missing_images = segment_log[
+                (segment_log['img_id'] == 'NotSaved') &
+                (segment_log['panoid'].isnull()) & (segment_log['img_date'].isnull())]
+            segment_missing_images = len(segment_missing_images)
+
+            # Get number of captured images for the segment
+            segment_captured_imgs = segment_log[
+                ~segment_log['img_id'].isin(['NotSaved', 'UnavailableFirstHeading',
+                                             'UnavailableCoordinates'])].copy()
+            segment_captured_imgs = len(segment_captured_imgs)
+
+            for aggregation in AGGREGATIONS.keys():
+                # Compute aggregation and save to file
+                agg_function = AGGREGATIONS[aggregation]
+
+                # Handle segments with zero images (this type of row is generated in
+                # 01_detect_segments.py line 152) and images with at least one
+                # missing image if this is the selected missing_image normalization.
+                if (segment_df['img_id'].iloc[0] is np.nan) or (
+                        missing_image_normalization == 'mark_missing' and segment_missing_images > 0):
+                    segment_aggregation = {}
+                    for object_class in CLASSES_TO_LABEL.keys():
+                        segment_aggregation[object_class] = None
+                else:
+                    # Filter for minimum confidence level
+                    segment_df_filtered = segment_df[
+                        segment_df['confidence'] >= min_confidence_level / 100].copy()
+
+                    segment_aggregation = agg_function(
+                        df=segment_df_filtered, img_size=image_size,
+                        length=segment_length,
+                        num_missing_images=segment_missing_images,
+                        num_captured_images=segment_captured_imgs,
+                        missing_img_normalization=missing_image_normalization)
+
+                # Tag with the segment ID
+                segment_aggregation = {
+                    segment_id: segment_aggregation, 'segment_date': str(date)}
+                row_str = json.dumps(segment_aggregation)
+
+                # Save to file
+                agg_logger = aggregation_files[aggregation]
+                agg_logger.write(row_str)
 
     # Save temporary files as DataFrames
     print('[INFO] Segment representations generated. Exporting temporary files'
@@ -196,7 +257,7 @@ if __name__ == '__main__':
         # Export if all segments have been processed
         if number_of_processed_segments == len(segment_dictionary):
             # Create base DataFrame
-            df_cols = {'segment_id': []}
+            df_cols = {'segment_id': [], 'segment_date': []}
             for object_class in CLASSES_TO_LABEL.keys():
                 df_cols[object_class] = []
             segment_representations = pd.DataFrame(df_cols)
@@ -205,7 +266,9 @@ if __name__ == '__main__':
             for segment in vector_representations:
                 segment_dict = json.loads(segment)
                 segment_id = list(segment_dict.keys())[0]
-                new_segment_dict = {'segment_id': segment_id}
+                segment_date = segment_dict['segment_date']
+                new_segment_dict = {
+                    'segment_id': segment_id, 'segment_date': segment_date}
                 for key, item in segment_dict[segment_id].items():
                     new_segment_dict[key] = item
 

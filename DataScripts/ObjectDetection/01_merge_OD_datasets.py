@@ -12,11 +12,11 @@ import DataScripts.urbanchange_utils as urbanchange_utils
 # Parameters
 ROBOFLOW_DIRECTORY = os.path.join(
     '..', '..', 'Data', 'RawData', 'ObjectDetection', 'Res_640',
-    'Iteration2', 'Roboflow')
+    'Iteration2', 'RoboflowExMexicoCity')
 OUTPUT_DIRECTORY = os.path.join(
     '..', '..', 'Data', 'ProcessedData', 'ObjectDetection', 'Res_640',
-    'Iteration2')
-NUM_VALID_IMAGES = 300
+    'Iteration2ExMexicoCity')
+NUM_VALID_IMAGES = 250
 # Mark a directory for train split only (not validation)
 TRAIN_ONLY_BATCHES = ['batch5.v2-iteration2graffiti.yolov5pytorch']
 
@@ -175,8 +175,8 @@ if __name__ == '__main__':
     # Create .yaml file
     print('[INFO] Generating YAML file..')
     yaml_dict = {
-        'train': '../train/images',
-        'val': '../valid/images',
+        'train': './train/images',
+        'val': './valid/images',
         'nc': len(CLASSES_TO_LABEL),
         'names': CLASS_LIST
     }
