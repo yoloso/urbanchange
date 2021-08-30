@@ -57,3 +57,22 @@ def prep_image_log(images_dir):
     image_log = image_log.drop_duplicates(subset=['segment_id', 'query_id'])
 
     return image_log
+
+
+def prep_object_vectors_with_dates(obj_vectors_dir, images_dir):
+    object_vectors = prep_object_vectors(obj_vectors_dir)
+    image_log = prep_image_log(images_dir)
+
+    # Get image dates
+    image_dates = image_log.copy()
+    image_dates['image_name'] = image_dates['img_id'].apply(
+        lambda x: '_'.join(x.split('_')[2:4]).split('.')[0] if 'img' in x else None)
+    image_dates = image_dates[['segment_id', 'image_name', 'img_date']]
+    image_dates = image_dates[image_dates['image_name'].notnull()]
+
+    # Merge
+    object_vectors = object_vectors.merge(
+        image_dates, how='left', left_on=['segment_id', 'img_id'],
+        right_on=['segment_id', 'image_name'], validate='many_to_one')
+
+    return object_vectors

@@ -76,8 +76,12 @@ if __name__ == '__main__':
     # Get selected location-time and verify the three files match
     location_time = object_vectors_dir.split(os.path.sep)[-1]
     location, time = location_time.split('_')[0], location_time.split('_')[1]
-    time = date(int(time.split('-')[0]), int(time.split('-')[1]),
-                int(time.split('-')[2]))
+    if '_full_' in location_time:
+        time = 'timestamped'
+    else:
+        time = date(int(time.split('-')[0]), int(time.split('-')[1]),
+                    int(time.split('-')[2]))
+
     segment_dict_location = \
         segment_dict_file.split(os.path.sep)[-1].split('.')[0].split('_')[-1]
     images_location_time = images_dir.split(os.path.sep)[-1]
