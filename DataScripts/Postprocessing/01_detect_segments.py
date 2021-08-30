@@ -180,7 +180,7 @@ if __name__ == '__main__':
         segment_result_counter = 0
         for results_batch, image_paths_batch in zip(results_list, image_paths_list):
             # Loop over each image
-            for i in range(len(results)):
+            for i in range(len(results_batch)):
                 # Get objects and image ID
                 img_objects = get_objects(
                     results_batch.xyxy[i], model_names, image_paths_batch[i],
