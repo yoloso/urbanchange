@@ -28,14 +28,15 @@ from DataScripts.object_classes import CLASSES_TO_LABEL
 
 
 # Parameters
-WEIGHTS = {'facade': 0.1,
-           'graffiti': 0.2,
-           'weed': 0.1,
-           'garbage': 0.2,
-           'pothole': 0,
-           'tent': 0,
-           'window': 0.2,
-           'graffiti2': 0.1}
+WEIGHTS = {'facade': 1,
+           'graffiti': 1,
+           'weed': 1,
+           'garbage': 1,
+           'pothole': 1,
+           'tent': 1,
+           'window': 1,
+           'graffiti2': 1,
+           'outdoor-establishment': 0}
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -46,7 +47,7 @@ parser.add_argument('-a', '--aggregation_type', required=True,
                     help='Aggregation type used to generate segment vectors')
 parser.add_argument('-m', '--missing_image', required=True,
                     help='Image normalization used to generate segment vectors')
-parser.add_argument('-o', '--output_dir',
+parser.add_argument('-o', '--output_dir', required=False,
                     default=os.path.join('..', '..', 'Outputs', 'Urban_quality', 'Res_640'),
                     help='Output directory path')
 parser.add_argument('-c', '--confidence_level', required=True, type=int,
@@ -114,7 +115,7 @@ if __name__ == '__main__':
 
     # Generate logs
     index_cols = [
-        col for col in representation_vectors.columns if col != 'segment_id']
+        col for col in representation_vectors.columns if col not in ['segment_id', 'segment_date']]
     for index_col in index_cols:
         log_col = '{}_log'.format(index_col)
         representation_vectors[log_col] = representation_vectors[index_col] + 0.0001

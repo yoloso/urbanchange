@@ -13,6 +13,10 @@
 # Outputs:
 #   - PNG and HTML files including the static and interactive maps saved to
 #     the specified OUTPUT_PATH
+#
+# Note: This script cannot be used for timestamped neighborhoods. Each segment
+# ID must have a unique index row with a single date.
+
 
 import argparse
 import branca.colormap as cm
@@ -59,6 +63,11 @@ if __name__ == '__main__':
     location_time = indices_dir.split(os.path.sep)[-1]
     location = location_time.split('_')[0]
     neighborhood = LOCATIONS[location]
+
+    # Check that neighborhood is not timestamped
+    if '_full_' in location_time:
+        raise Exception('[ERROR] This script cannot be used for timestamped'
+                        ' locations.')
 
     # Load indices and index column
     try:

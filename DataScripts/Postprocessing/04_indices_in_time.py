@@ -18,6 +18,10 @@
 # Outputs:
 #   - CSV file including urban change indices of each street segment (exported
 #     to the selected output path)
+#
+# Note: This script cannot be used for timestamped neighborhoods. Each segment
+# ID must have a unique index row with a single date.
+
 
 import argparse
 import os
@@ -91,7 +95,7 @@ if __name__ == '__main__':
 
     # Get columns in common (except segment_id)
     common_cols = set(indices['0'].columns).intersection(set(indices['1'].columns))
-    common_cols = [col for col in common_cols if col != 'segment_id']
+    common_cols = [col for col in common_cols if col not in ['segment_id', 'segment_date']]
 
     # Merge DataFrames
     for i in [0, 1]:
