@@ -37,7 +37,7 @@ from DataScripts.urbanchange_utils import AppendLogger
 
 from DataScripts.vector_aggregations import MISSING_IMAGE_NORMALIZATION
 from DataScripts.vector_aggregations import AGGREGATIONS
-
+from DataScripts.vector_aggregations import MIN_NUMBER_OF_PANORAMAS
 
 # Set up command line arguments
 parser = argparse.ArgumentParser()
@@ -155,17 +155,17 @@ if __name__ == '__main__':
             segment_dates = object_vectors[
                 object_vectors['segment_id'] == segment_id]['img_date'].unique()
             for date in segment_dates:
-                segment_dfs[date] =\
+                segment_dfs[date] = \
                     object_vectors[(object_vectors['segment_id'] == segment_id) &
                                    (object_vectors['img_date'] == date)].copy()
-                segment_logs[date] =\
+                segment_logs[date] = \
                     image_log[(image_log['segment_id'] == segment_id) &
                               (image_log['img_date'] == date)].copy()
         else:
             segment_dates = [time]
-            segment_dfs[time] =\
+            segment_dfs[time] = \
                 object_vectors[object_vectors['segment_id'] == segment_id].copy()
-            segment_logs[time] =\
+            segment_logs[time] = \
                 image_log[image_log['segment_id'] == segment_id].copy()
 
         # Handle case of segments with zero imagery. Note: Even though this is
@@ -215,7 +215,9 @@ if __name__ == '__main__':
                 # 01_detect_segments.py line 152) and images with at least one
                 # missing image if this is the selected missing_image normalization.
                 if (segment_df['img_id'].iloc[0] is np.nan) or (
-                        missing_image_normalization == 'mark_missing' and segment_missing_images > 0):
+                        missing_image_normalization == 'mark_missing' and
+                        segment_missing_images > 0) or (
+                        segment_captured_imgs < MIN_NUMBER_OF_PANORAMAS):
                     segment_aggregation = {}
                     for object_class in CLASSES_TO_LABEL.keys():
                         segment_aggregation[object_class] = None

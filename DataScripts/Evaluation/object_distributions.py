@@ -14,14 +14,14 @@ from DataScripts.read_files import prep_object_vectors, prep_image_log
 
 # Parameters
 object_vectors_dir = os.path.join(
-    'Outputs', 'Detection', 'Res_640', 'MissionDistrictBlock_2011-02-01')
-images_dir = os.path.join(
+    '..', '..', 'Outputs', 'Detection', 'Res_640', 'MexicoCityCentroDoctores_2017-08-01')
+images_dir = os.path.join('..', '..',
     'Data', 'ProcessedData', 'SFStreetView', 'Res_640',
-    'MissionDistrictBlock_2011-02-01')
+    'MexicoCityCentroDoctores_2017-08-01')
 min_confidence_level = 50
-neighborhood = LOCATIONS['MissionDistrictBlock']
-output_path = os.path.join(
-    'Outputs', 'Detection', 'Res_640', 'MissionDistrictBlock_2011-02-01',
+neighborhood = LOCATIONS['MexicoCityCentroDoctores']
+output_path = os.path.join('..', '..',
+    'Outputs', 'Detection', 'Res_640', 'MexicoCityCentroDoctores_2017-08-01',
     'obj_distributions.html')
 
 
@@ -34,7 +34,8 @@ def color_marker(obj_class):
         'pothole': '#F0E442',
         'tent': '#0072B2',
         'window': '#D55E00',
-        'graffiti2': '#CC79A7'
+        'graffiti2': '#CC79A7',
+        'outdoor-establishment': '#FFFFFF'
     }
     return color_dict[obj_class]
 
@@ -58,6 +59,10 @@ object_locations = object_vectors.merge(
     image_log[['img_id', 'img_date', 'pano_lat', 'pano_lng']],
     how='left', left_on='full_img_id', right_on='img_id', validate='many_to_one')
 
+# Filter for missing location values
+object_locations = object_locations[
+    (object_locations['pano_lat'].notnull()) & (object_locations['pano_lng'].notnull())]
+
 # Plot
 object_locations['geometry'] = object_locations.apply(
     lambda x: Point(x['pano_lng'], x['pano_lat']), axis=1)
@@ -66,7 +71,8 @@ gdf.crs = "EPSG:4326"
 
 # Visualize objects for each class
 neighborhood_map = folium.Map(
-    location=neighborhood['start_location'], zoom_start=12)
+    location=neighborhood['start_location'], zoom_start=12,
+    tiles='CartoDb dark_matter')
 
 for obj_class in list(CLASSES_TO_LABEL.keys()):
     # Filter class objects

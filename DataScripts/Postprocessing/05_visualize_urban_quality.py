@@ -123,6 +123,10 @@ if __name__ == '__main__':
     # Filter for minimum length
     complete = complete[complete['length'] >= MIN_LENGTH]
 
+    # Add segment id to include in map
+    complete['segment_id'] = complete.apply(
+        lambda row: '{}-{}'.format(row['node0'], row['node1']), axis=1)
+
     print('[INFO] Generating maps.')
     output_path = os.path.join(indices_dir, 'Maps')
     if not os.path.exists(output_path):
@@ -149,11 +153,11 @@ if __name__ == '__main__':
 
     # Interactive map
     style_fun = lambda x: {'color': CMAP_dark(x['properties']['index']), 'weight': '1'}
-
+    marker_popup = folium.GeoJsonPopup(fields=['segment_id'])
     gdf = gpd.GeoDataFrame(complete, geometry='geometry')
     interactive_map = folium.Map(
         neighborhood['start_location'], zoom_start=13, tiles='CartoDb dark_matter')
-    folium.GeoJson(gdf, style_function=style_fun).add_to(interactive_map)
+    folium.GeoJson(gdf, style_function=style_fun, popup=marker_popup).add_to(interactive_map)
     interactive_map.save(os.path.join(output_path, 'IntMap_{}_{}_{}_{}.html'.format(
         index, aggregation_type, missing_image_normalization,
         str(min_confidence_level))))

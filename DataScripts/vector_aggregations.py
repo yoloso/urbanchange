@@ -11,6 +11,7 @@ LENGTH_RATE = 100
 MISSING_IMAGE_NORMALIZATION = [
     'mark_missing', 'length_adjustment', 'pano_adjustment']
 PANORAMA_COVERAGE = 2  # (average meters covered by each panorama view)
+MIN_NUMBER_OF_PANORAMAS = 8
 
 
 def generate_full_agg_dictionary(agg_series):
