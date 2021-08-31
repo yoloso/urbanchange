@@ -36,6 +36,7 @@ URBAN_INDEX = os.path.join(
     'indices_count_pano_adjustment_50.csv')
 SELECTED_INDEX = 'weighted_sum_log'
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
+CONFIDENCE_LEVEL = 50
 # Define treatment (number of months)
 TREATMENT = 6
 
@@ -66,7 +67,7 @@ urban_index['segment_date'] = urban_index['segment_date'].apply(
 
 # Get tent instances
 tent_vectors = object_vectors[object_vectors['class'] == 'tent'].copy()
-tent_vectors = tent_vectors[tent_vectors['confidence'] >= 0.5]
+tent_vectors = tent_vectors[tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100]
 tent_vectors = tent_vectors.groupby(['segment_id', 'segment_date']).size().\
     reset_index(name='count')
 tent_vectors['tent_indicator'] = 1
@@ -105,5 +106,6 @@ final_panel = base_panel.copy()
 # Generate treatment column
 shifted_panels = [final_panel]
 for lag in range(1, TREATMENT + 1):
+    # change col names
     shifted_panels.append(final_panel.shift(lag))
 final_panel = pd.concat(shifted_panels, axis=1)
