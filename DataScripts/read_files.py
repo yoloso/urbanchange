@@ -67,7 +67,8 @@ def prep_object_vectors_with_dates(obj_vectors_dir, images_dir):
     image_dates = image_log.copy()
     image_dates['image_name'] = image_dates['img_id'].apply(
         lambda x: '_'.join(x.split('_')[2:4]).split('.')[0] if 'img' in x else None)
-    image_dates = image_dates[['segment_id', 'image_name', 'img_date']]
+    image_dates = image_dates[[
+        'segment_id', 'image_name', 'img_date', 'pano_lat', 'pano_lng']]
     image_dates = image_dates[image_dates['image_name'].notnull()]
 
     # Merge
