@@ -29,7 +29,7 @@ import osmnx as ox
 import pandas as pd
 
 from DataScripts.locations import LOCATIONS
-from DataScripts.urbanchange_utils import generate_location_graph
+from DataScripts.urbanchange_utils import generate_location_graph, generate_urbanindex_gdf
 
 
 # Parameters
@@ -49,6 +49,7 @@ parser.add_argument('-i', '--index', required=True,
                     help='Index to plot (must match column name in indices.csv)')
 parser.add_argument('-c', '--confidence_level', required=True, type=int,
                     help='Minimum confidence level to filter detections (in percent)')
+
 
 if __name__ == '__main__':
     # Capture command line arguments
@@ -76,49 +77,20 @@ if __name__ == '__main__':
                 indices_dir, 'indices_{}_{}_{}.csv'.format(
                     aggregation_type, missing_image_normalization,
                     str(min_confidence_level))), 'r') as file:
-            indices = pd.read_csv(file)
+            index_data = pd.read_csv(file)
     except FileNotFoundError:
         raise Exception('[ERROR] Indices for location-time not found.')
 
     try:
-        indices['index'] = indices[index]
+        index_data['index'] = index_data[index]
     except KeyError:
         raise Exception('[ERROR] Index not found in Indices DataFrame.')
 
     # Generate graph and prepare edge data for merge
     G = generate_location_graph(neighborhood=neighborhood, simplify=True)
-    _, edges = ox.graph_to_gdfs(G)
+    _, edge_data = ox.graph_to_gdfs(G)
 
-    edges = edges[['osmid', 'name', 'geometry', 'length']]
-    edges.reset_index(inplace=True)
-    edges = edges.drop_duplicates(subset=['u', 'v'])
-
-    # Get nodes and index column from indices
-    indices['node0'] = indices['segment_id'].str.split('-', expand=True)[0]
-    indices['node1'] = indices['segment_id'].str.split('-', expand=True)[1]
-
-    indices = indices[['node0', 'node1', 'index']]
-    indices = indices.astype({"node0": np.int64, "node1": np.int64})
-
-    # Merge segment data and graph data
-    # Note: We need to merge twice, otherwise we get missing geometry values.
-    # This is because in 01_generate_street_segments we ordered the node values
-    # numerically, and some edges are only 1 directional.
-    indices0 = pd.merge(indices, edges, how='left', left_on=['node0', 'node1'],
-                        right_on=['u', 'v'], validate='many_to_one')
-    indices1 = pd.merge(indices, edges, how='left', left_on=['node0', 'node1'],
-                        right_on=['v', 'u'], validate='many_to_one')
-    indices0.dropna(subset=['geometry'], inplace=True)
-    indices1.dropna(subset=['geometry'], inplace=True)
-
-    # Get complete data by concatenating both DataFrames and dropping duplicates
-    indices_full = pd.concat([indices0, indices1])
-    indices_full.drop_duplicates(subset=['node0', 'node1'], inplace=True)
-    complete = pd.merge(indices, indices_full[['node0', 'node1', 'geometry', 'length']],
-                        how='left', validate='one_to_one')
-
-    # Drop missing index values
-    complete.dropna(subset=['index'], inplace=True)
+    complete = generate_urbanindex_gdf(edge_data, index_data)
 
     # Filter for minimum length
     complete = complete[complete['length'] >= MIN_LENGTH]
