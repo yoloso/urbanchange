@@ -10,7 +10,7 @@ from locations import LOCATIONS
 
 # Parameters
 INPUT_DATA = os.path.join(
-    'Data', 'ProcessedData', 'Administrative', 'MexicoCity',
+    'Data', 'ProcessedData', 'UseCases', 'MexicoCity',
     'cuauhtemoc_presupuesto4.csv')
 SEGMENT_DICTIONARY_FILE = os.path.join(
     'Data', 'ProcessedData', 'SFStreetView',

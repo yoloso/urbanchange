@@ -1,5 +1,6 @@
 import branca.colormap as cm
 import geopandas as gpd
+from matplotlib.colors import ListedColormap
 import matplotlib.pyplot as plt
 import os
 import osmnx as ox
@@ -12,7 +13,7 @@ from DataScripts.urbanchange_utils import generate_location_graph, generate_urba
 
 # Parameters
 PROJECT_DATA = os.path.join(
-    'Data', 'ProcessedData', 'Administrative', 'MexicoCity',
+    'Data', 'ProcessedData', 'UseCases', 'MexicoCity',
     'cuauhtemoc_presupuesto_long.csv')
 URBAN_INDEX = os.path.join(
     'Outputs', 'Urban_quality', 'Res_640',
@@ -53,7 +54,9 @@ def plot_index_project_selection(
 
     fig, ax = plt.subplots(figsize=(10, 10))
     gdf_segments.plot(ax=ax, color=gdf_segments['color'])
-    gdf_projects.plot(ax=ax, color=gdf_projects['color'])
+    gdf_projects.plot(ax=ax, column='Type', categorical=True, legend=True,
+                      legend_kwds={'title': 'Project types', 'edgecolor': 'white',
+                                   'loc': 'lower center', 'ncol': 2}, cmap='Pastel2')
     plt.axis('off')
     plt.savefig(os.path.join(
         OUTPUT_PATH, 'StaticMap_{}_{}.png'.format(
@@ -102,9 +105,13 @@ gdf_projects = gpd.GeoDataFrame(projects, geometry='geometry')
 gdf_edges['color'] = gdf_edges.apply(lambda row: color_projects(row['Type']), axis=1)
 gdf_projects['color'] = gdf_projects.apply(lambda row: color_projects(row['Type']), axis=1)
 
+cmap = ListedColormap([color_projects(proj_type) for proj_type in gdf_projects['Type'].unique()])
+
 fig, ax = plt.subplots(figsize=(10, 10))
 gdf_edges.plot(ax=ax, color=gdf_edges['color'])
-gdf_projects.plot(ax=ax, color=gdf_projects['color'])
+gdf_projects.plot(ax=ax, column='Type', categorical=True, legend=True,
+                  legend_kwds={'title': 'Project types', 'edgecolor': 'white',
+                               'loc': 'lower center', 'ncol': 2}, cmap='Pastel2')
 plt.axis('off')
 plt.savefig(os.path.join(OUTPUT_PATH, 'StaticMap_ProjectLocations.png'))
 
@@ -124,3 +131,19 @@ plot_index_project_selection(
     edges, urban_index, projects,
     ['Street repair'],
     'pothole_absoluteChange', 'potholes')
+
+plot_index_project_selection(
+    edges, urban_index, projects,
+    ['Painting, waterproofing or other', 'Public lighting',
+     'Street planter installation', 'Street repair'],
+    'weighted_sum_log_absoluteChange', 'all')
+
+plot_index_project_selection(
+    edges, urban_index, projects,
+    ['Painting, waterproofing or other'],
+    'facade_log_absoluteChange', 'facades')
+
+plot_index_project_selection(
+    edges, urban_index, projects,
+    ['Street repair'],
+    'pothole_log_absoluteChange', 'potholes')
