@@ -15,14 +15,16 @@
 # Outputs:
 #   - CSV file
 
+import datetime
 from datetime import date
 import json
+import numpy as np
 import os
 import pandas as pd
 
 from DataScripts.read_files import load_segment_dict
 from DataScripts.read_files import prep_object_vectors_with_dates
-
+#TODO PENDING generate urban index excluding tents
 
 # Parameters
 SEGMENT_DICTIONARY_FILE = os.path.join(
@@ -34,11 +36,43 @@ OBJECT_VECTORS_DIR = os.path.join(
 URBAN_INDEX = os.path.join(
     'Outputs', 'Urban_quality', 'Res_640', 'SFTenderloin_full_2009_2021',
     'indices_count_pano_adjustment_50.csv')
+OUTPUT_DIR = os.path.join(
+    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin'
+)
 SELECTED_INDEX = 'weighted_sum_log'
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
 CONFIDENCE_LEVEL = 50
-# Define treatment (number of months)
-TREATMENT = 6
+# Define treatment (number of quarters)
+TREATMENT = 4
+# Define urban change
+
+
+# Helper functions
+def aggregate_tent_presence(x):
+    if x.empty:
+        return None
+    else:
+        if np.isnan(x).sum() == len(x):
+            return np.nan
+        else:
+            tent_sum = np.nansum(x)
+            tent_indicator = 1 if tent_sum > 0 else 0
+            return tent_indicator
+
+
+def aggregate_urban_index(x):
+    if x.empty:
+        return None
+    else:
+        if np.isnan(x).sum() == len(x):
+            return np.nan
+        else:
+            return np.nanmean(x)
+
+
+def generate_treatment(row):
+    pass # TODO
+
 
 # Load files
 segment_dictionary = load_segment_dict(SEGMENT_DICTIONARY_FILE)
@@ -54,12 +88,13 @@ except FileNotFoundError:
 try:
     urban_index['index'] = urban_index[SELECTED_INDEX]
     urban_index = urban_index[['segment_id', 'segment_date', 'index', 'tent']]
-    urban_index['segment_date'] = pd.to_datetime(urban_index['segment_date'])
 except KeyError:
     raise Exception('[ERROR] Selected index is not found in urban index file.')
 
 # Fix dates
 object_vectors['segment_date'] = pd.to_datetime(object_vectors['img_date'])
+urban_index['segment_date'] = pd.to_datetime(urban_index['segment_date'])
+
 object_vectors['segment_date'] = object_vectors['segment_date'].apply(
     lambda x: x.date())
 urban_index['segment_date'] = urban_index['segment_date'].apply(
@@ -100,12 +135,32 @@ base_panel['tent_indicator'] = base_panel.apply(
     axis=1
 )
 
-# Generate final panel
-final_panel = base_panel.copy()
+# Aggregate observations on a quarterly basis
+quarterly_panel = base_panel[
+    ['segment_id', 'segment_date', 'tent_indicator', 'index']].copy()
+quarterly_panel['quarter'] = pd.PeriodIndex(
+    quarterly_panel['segment_date'], freq='Q')
 
-# Generate treatment column
+quarterly_panel = quarterly_panel.groupby(['segment_id', 'quarter']).\
+    agg({'tent_indicator': aggregate_tent_presence,
+         'index': aggregate_urban_index}).reset_index()
+
+# Generate final panel
+final_panel = quarterly_panel.copy()
+
+# Generate lagged columns
 shifted_panels = [final_panel]
 for lag in range(1, TREATMENT + 1):
-    # change col names
-    shifted_panels.append(final_panel.shift(lag))
+    # Change column names
+    lagged_panel = final_panel[['tent_indicator', 'index']].copy()
+    lagged_panel.rename(
+        columns={'tent_indicator': 'tent_indicator{}'.format(lag),
+                 'index': 'index_indicator{}'.format(lag)}, inplace=True)
+    lagged_panel = lagged_panel.shift(lag)
+    shifted_panels.append(lagged_panel)
+
 final_panel = pd.concat(shifted_panels, axis=1)
+final_panel.to_csv(os.path.join(OUTPUT_DIR, 'lagged_panel_quarters.csv'), index=False)
+
+# Generate treatment column
+final_panel['treatment'] = final_panel.apply(lambda row: generate_treatment(row), axis=1)
