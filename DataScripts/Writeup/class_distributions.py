@@ -7,8 +7,8 @@ import yaml
 
 DATASET = os.path.join('..', '..',
     'Data', 'RawData', 'ObjectDetection', 'Res_640',
-                       'Iteration2', 'Roboflow',
-                       'Tent_class.v1-iteration2sfoaklandtents.yolov5pytorch')
+                       'Iteration2', 'MexicoCityTestSet',
+                       'MexicoCityTestSet.v1-it2mexicocitycdtestset.yolov5pytorch')
 
 # Read data.yaml file to learn labels
 try:

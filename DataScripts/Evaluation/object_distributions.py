@@ -137,6 +137,7 @@ def check_nodes(u, v, seg_set):
         return 'lightgray'
 
 
+# Generate plots for every year and class combination
 for year in YEARS:
     # Get imagery availability
     annual_segments = set(
@@ -155,3 +156,4 @@ for year in YEARS:
         plt.axis('off')
         plt.savefig(os.path.join(
             output_path, 'StaticMap_{}_{}.png'.format(obj_class, year)))
+

@@ -56,6 +56,7 @@ def plot_index_project_selection(
     gdf_segments.plot(ax=ax, color=gdf_segments['color'])
     gdf_projects.plot(ax=ax, column='Type', categorical=True, legend=True,
                       legend_kwds={'title': 'Project types', 'edgecolor': 'white',
+                                   'facecolor': 'white',
                                    'loc': 'lower center', 'ncol': 2}, cmap='Pastel2')
     plt.axis('off')
     plt.savefig(os.path.join(
@@ -111,9 +112,13 @@ fig, ax = plt.subplots(figsize=(10, 10))
 gdf_edges.plot(ax=ax, color=gdf_edges['color'])
 gdf_projects.plot(ax=ax, column='Type', categorical=True, legend=True,
                   legend_kwds={'title': 'Project types', 'edgecolor': 'white',
+                               'facecolor': 'white',
                                'loc': 'lower center', 'ncol': 2}, cmap='Pastel2')
 plt.axis('off')
 plt.savefig(os.path.join(OUTPUT_PATH, 'StaticMap_ProjectLocations.png'))
+
+# Remove the projects that are out of scope
+projects = projects[~projects['COLONIA'].isin(['Centro III', 'Centro IV'])]
 
 # Map projects and urban indices
 plot_index_project_selection(
