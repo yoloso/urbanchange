@@ -141,7 +141,8 @@ def check_nodes(u, v, seg_set):
 for year in YEARS:
     # Get imagery availability
     annual_segments = set(
-        urban_index[urban_index['year'] == year]['segment_id'].to_list())
+        urban_index[(urban_index['year'] == year) &
+                    (urban_index['facade'].notnull())]['segment_id'].to_list())
     gdf_edges['color'] = gdf_edges.apply(
         lambda row: check_nodes(row['u'], row['v'], annual_segments), axis=1)
 
