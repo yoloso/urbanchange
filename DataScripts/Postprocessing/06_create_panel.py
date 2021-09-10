@@ -24,7 +24,7 @@ import pandas as pd
 
 from DataScripts.read_files import load_segment_dict
 from DataScripts.read_files import prep_object_vectors_with_dates
-#TODO PENDING generate urban index excluding tents
+
 
 # Parameters
 SEGMENT_DICTIONARY_FILE = os.path.join(

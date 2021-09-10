@@ -237,8 +237,6 @@ street_segments, street_segments_full = edges_b.copy(), edges_b_full.copy()
 
 # Get unique (node1, node2) edges for the simplified graph
 street_segments = get_unique_segments(street_segments)
-# TODO For SF we compute 576 fewer segments
-# TODO: how to identify correct heading for a street like Guerrero?
 
 # Get the (begin, end) nodes from the full street data for each subsegment
 street_segments_full[['node1']] = street_segments_full['geometry'].apply(
