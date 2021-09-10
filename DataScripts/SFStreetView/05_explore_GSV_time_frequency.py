@@ -1,6 +1,7 @@
 # 05_explore_GSV_time_frequency.py
 #
-#
+# Visualizes the quantity of GSV imagery that is available for a location
+# during a specified time period.
 #
 # Usage: Add selected location to the LOCATIONS dictionary in locations.py and
 # replace the SELECTED_NEIGHBORHOOD parameter with the dictionary key.
