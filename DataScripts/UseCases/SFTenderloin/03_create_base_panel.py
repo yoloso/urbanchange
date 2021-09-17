@@ -30,7 +30,7 @@ TENT_DETECTIONS_FILE = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'tent_checks.csv')
 URBAN_INDEX = os.path.join(
     'Outputs', 'Urban_quality', 'Res_640', 'SFTenderloin_full_2009_2021',
-    'indices_count_pano_adjustment_50.csv')
+    'indices_count_pano_adjustment_50_excludingtents.csv')
 OUTPUT_DIR = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin')
 SELECTED_INDEX = 'weighted_sum_log'
