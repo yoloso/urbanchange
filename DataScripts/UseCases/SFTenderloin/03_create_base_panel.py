@@ -35,7 +35,7 @@ OUTPUT_DIR = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin')
 SELECTED_INDEX = 'weighted_sum_log'
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
-CONFIDENCE_LEVEL = 50
+CONFIDENCE_LEVEL = 0
 
 
 # Load files
