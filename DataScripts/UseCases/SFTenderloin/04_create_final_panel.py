@@ -18,13 +18,18 @@ import numpy as np
 import os
 import pandas as pd
 
-
 # Parameters
 BASE_PANEL = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'base_panel.csv')
 OUTPUT_PANEL = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'final_panel.csv')
-LAGS = 1   # Number of period lags
+LAGS = 1  # Number of period lags
+URBAN_INDEX_COLS = [
+    'facade', 'graffiti', 'weed', 'garbage',
+    'pothole', 'tent', 'window', 'graffiti2', 'outdoor-establishment',
+    'sum', 'weighted_sum', 'facade_log', 'graffiti_log', 'weed_log',
+    'garbage_log', 'pothole_log', 'tent_log', 'window_log', 'graffiti2_log',
+    'outdoor-establishment_log', 'sum_log', 'weighted_sum_log']
 
 
 # Helper functions
@@ -84,8 +89,7 @@ base_panel_cp.rename(
 
 # * Generate panel with the tent values of all adjacent street segments
 extended_panel = pd.DataFrame(
-    {'segment_id': [], 'segment_date': [], 'tent_count': [], 'index': [],
-     'node1': [], 'node2': [], 'node1r': [], 'node2r': [], 'tent_countr': []})
+    {col: [] for col in list(base_panel.columns) + ['node1r', 'node2r', 'tent_countr']})
 
 # We have to merge four times, twice for each of the two end nodes, as the
 # nodes may appear in the left or right hand-side of the hashed street segment
@@ -107,8 +111,9 @@ for x in range(1, 3):
         extended_panel = pd.concat([extended_panel, merged_panel], axis=0)
 
 # * Compute aggregate exposure to tents (including adjacent segments)
-extended_panel = extended_panel.\
-    groupby(['segment_id', 'segment_date', 'tent_count', 'index'], dropna=False).\
+extended_panel = extended_panel. \
+    groupby(['segment_id', 'segment_date', 'tent_count'] + URBAN_INDEX_COLS,
+            dropna=False). \
     agg({'tent_countr': aggregate_sum}).reset_index()
 extended_panel.rename(columns={'tent_countr': 'tent_count_2d'}, inplace=True)
 
@@ -120,10 +125,13 @@ quarterly_panel['quarter'] = pd.PeriodIndex(
 
 # * Aggregate on a quarterly basis by summing over tents and averaging the
 # urban index
-quarterly_panel = quarterly_panel.groupby(['segment_id', 'quarter']).\
-    agg({'tent_count': aggregate_sum,
-         'index': aggregate_mean,
-         'tent_count_2d': aggregate_sum}).reset_index()
+quarter_aggregations = {
+    'tent_count': aggregate_sum, 'tent_count_2d': aggregate_sum}
+for col in URBAN_INDEX_COLS:
+    quarter_aggregations[col] = aggregate_mean
+
+quarterly_panel = quarterly_panel.groupby(['segment_id', 'quarter']). \
+    agg(quarter_aggregations).reset_index()
 
 # Generate final panel with all treatments and outcomes -----------
 final_panel = quarterly_panel.copy()
@@ -136,13 +144,13 @@ for lag in range(1, LAGS + 1):
         ['segment_id'])['tent_count_2d'].shift(lag)
 
 # * Generate tent indicators
-final_panel['tent_indicator'] = final_panel['tent_count'].\
+final_panel['tent_indicator'] = final_panel['tent_count']. \
     apply(generate_indicator)
-final_panel['tent_indicator_2d'] = final_panel['tent_count_2d'].\
+final_panel['tent_indicator_2d'] = final_panel['tent_count_2d']. \
     apply(generate_indicator)
-final_panel['tent_indicator_1'] = final_panel['tent_count_1'].\
+final_panel['tent_indicator_1'] = final_panel['tent_count_1']. \
     apply(generate_indicator)
-final_panel['tent_indicator_2d_1'] = final_panel['tent_count_2d_1'].\
+final_panel['tent_indicator_2d_1'] = final_panel['tent_count_2d_1']. \
     apply(generate_indicator)
 
 # Save to output directory ----------------------------------------

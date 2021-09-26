@@ -33,7 +33,6 @@ URBAN_INDEX = os.path.join(
     'indices_count_pano_adjustment_50_excludingtents.csv')
 OUTPUT_DIR = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin')
-SELECTED_INDEX = 'weighted_sum_log'
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
 CONFIDENCE_LEVEL = 0
 
@@ -53,12 +52,6 @@ try:
         urban_index = pd.read_csv(file)
 except FileNotFoundError:
     raise Exception('[ERROR] Urban index file not found.')
-
-try:
-    urban_index['index'] = urban_index[SELECTED_INDEX]
-    urban_index = urban_index[['segment_id', 'segment_date', 'index', 'tent']]
-except KeyError:
-    raise Exception('[ERROR] Selected index is not found in urban index file.')
 
 # Convert dates to datetime
 tent_vectors['segment_date'] = pd.to_datetime(tent_vectors['img_date'])
@@ -95,16 +88,16 @@ base_panel = base_panel.merge(
 
 # Add urban index to base panel
 base_panel = base_panel.merge(
-    urban_index[['segment_id', 'segment_date', 'index', 'tent']],
+    urban_index,
     how='left', on=['segment_id', 'segment_date'], validate='one_to_one')
 
 # Modify zeros in base panel: We need to identify cases where zero tents
 # were detected, as these are currently fake "nan"s
 base_panel['tent_count'] = base_panel.apply(
-    lambda row: 0 if pd.isnull(row['count']) and pd.notnull(row['index'])
+    lambda row: 0 if pd.isnull(row['count']) and pd.notnull(row['tent'])
     else row['count'],
     axis=1)
 
 # Save base panel
-base_panel[['segment_id', 'segment_date', 'tent_count', 'index']].\
-    to_csv(os.path.join(OUTPUT_DIR, 'base_panel.csv'), index=False)
+base_panel.drop(labels='count', axis='columns', inplace=True)
+base_panel.to_csv(os.path.join(OUTPUT_DIR, 'base_panel.csv'), index=False)
