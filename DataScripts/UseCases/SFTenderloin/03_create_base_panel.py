@@ -35,8 +35,8 @@ URBAN_INDEX = os.path.join(
 OUTPUT_DIR = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin')
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
-CONFIDENCE_LEVEL = 90
-OUTPUT_NAME = 'base_panel_combined.csv'
+CONFIDENCE_LEVEL = 0
+OUTPUT_NAME = 'base_panel_true.csv'
 
 
 # Load files
@@ -66,11 +66,11 @@ urban_index['segment_date'] = urban_index['segment_date'].apply(
 
 # Filter tent instances for false positives and/or confidence level
 #tent_vectors = tent_vectors[tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100]
-#tent_vectors = tent_vectors[tent_vectors['true_tent'] == '1']
-tent_vectors = tent_vectors[
-    ((tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100) &
-     (tent_vectors['true_tent'] != '0')) |
-    (tent_vectors['true_tent'] == '1')]
+tent_vectors = tent_vectors[tent_vectors['true_tent'] == '1']
+#tent_vectors = tent_vectors[
+#    ((tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100) &
+#     (tent_vectors['true_tent'] != '0')) |
+#    (tent_vectors['true_tent'] == '1')]
 
 # Aggregate tent detections at the street segment level
 tent_vectors = tent_vectors.groupby(['segment_id', 'segment_date']).size().\
