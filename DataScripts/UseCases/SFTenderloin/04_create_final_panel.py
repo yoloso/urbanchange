@@ -20,9 +20,9 @@ import pandas as pd
 
 # Parameters
 BASE_PANEL = os.path.join(
-    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'base_panel.csv')
+    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'base_panel_combined.csv')
 OUTPUT_PANEL = os.path.join(
-    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'final_panel.csv')
+    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'final_panel_combined.csv')
 LAGS = 1  # Number of period lags
 URBAN_INDEX_COLS = [
     'facade', 'graffiti', 'weed', 'garbage',

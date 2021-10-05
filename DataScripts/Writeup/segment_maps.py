@@ -7,8 +7,8 @@ from DataScripts.locations import LOCATIONS
 from DataScripts.urbanchange_utils import generate_location_graph, AppendLogger
 
 OUTPUT_PATH = os.path.join('..', '..', 'Outputs', 'Writeup')
-SELECTED_LOCATION = 'MexicoCityCentroDoctores'
-WIDER_LOCATION = 'MexicoCity'
+SELECTED_LOCATION = 'MissionTenderloinAshburyCastroChinatown'
+WIDER_LOCATION = 'SanFrancisco'
 OUTPUT_FILE = 'segmentsmap_{}.png'.format(SELECTED_LOCATION)
 
 if not os.path.exists(OUTPUT_PATH):

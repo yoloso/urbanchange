@@ -27,14 +27,16 @@ SEGMENT_DICTIONARY_FILE = os.path.join(
     'Data', 'ProcessedData', 'SFStreetView',
     'segment_dictionary_SFTenderloin.json')
 TENT_DETECTIONS_FILE = os.path.join(
-    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin', 'tent_checks.csv')
+    'Data', 'ProcessedData', 'UseCases', 'SFTenderloin',
+    'Tent_verification', 'tent_checks_consolidated.csv')
 URBAN_INDEX = os.path.join(
     'Outputs', 'Urban_quality', 'Res_640', 'SFTenderloin_full_2009_2021',
     'indices_count_pano_adjustment_50_excludingtents.csv')
 OUTPUT_DIR = os.path.join(
     'Data', 'ProcessedData', 'UseCases', 'SFTenderloin')
 PERIOD = {'start': date(2009, 1, 1), 'end': date(2021, 7, 31)}
-CONFIDENCE_LEVEL = 0
+CONFIDENCE_LEVEL = 90
+OUTPUT_NAME = 'base_panel_combined.csv'
 
 
 # Load files
@@ -63,8 +65,12 @@ urban_index['segment_date'] = urban_index['segment_date'].apply(
     lambda x: x.date())
 
 # Filter tent instances for false positives and/or confidence level
-tent_vectors = tent_vectors[tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100]
-tent_vectors = tent_vectors[tent_vectors['true_tent'] == 1]
+#tent_vectors = tent_vectors[tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100]
+#tent_vectors = tent_vectors[tent_vectors['true_tent'] == '1']
+tent_vectors = tent_vectors[
+    ((tent_vectors['confidence'] >= CONFIDENCE_LEVEL / 100) &
+     (tent_vectors['true_tent'] != '0')) |
+    (tent_vectors['true_tent'] == '1')]
 
 # Aggregate tent detections at the street segment level
 tent_vectors = tent_vectors.groupby(['segment_id', 'segment_date']).size().\
@@ -100,4 +106,4 @@ base_panel['tent_count'] = base_panel.apply(
 
 # Save base panel
 base_panel.drop(labels='count', axis='columns', inplace=True)
-base_panel.to_csv(os.path.join(OUTPUT_DIR, 'base_panel.csv'), index=False)
+base_panel.to_csv(os.path.join(OUTPUT_DIR, OUTPUT_NAME), index=False)
